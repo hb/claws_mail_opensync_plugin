@@ -1,0 +1,26 @@
+Protocol:
+
+(all lines end with \n)
+
+OpenSync
+ :finished:
+Claws Mail
+ (nil)
+ Claws Mail will do some cleanup.
+ 
+OpenSync
+ :request_contacts:
+Claws Mail
+  (for all contacts)
+   :start_contact:
+   (vcard as a string)
+   :end_contact:
+ :done:
+
+OpenSync
+ :change_contact:
+ (contact ID)
+ (vcard as a string)
+ :done:
+Claws Mail
+ :ok:  | :failure:
