@@ -33,8 +33,9 @@ Claws Mail
 
 OpenSync
  :add_contact:
+ :start_contact:
  (vcard as strings, without UID field)
- :done:
+ :end_contact:
 Claws Mail
  :start_contact:                | :failure:
  (vcard of newly added contact) |

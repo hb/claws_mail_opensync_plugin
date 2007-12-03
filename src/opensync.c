@@ -50,6 +50,8 @@ typedef struct
 static gchar* vcard_get_from_ItemPerson(ItemPerson*);
 static void update_ItemPerson_from_vcard(ItemPerson*, gchar*);
 
+static char* sock_get_next_line(int);
+
 static gchar* opensync_get_socket_name(void);
 static gint create_unix_socket(void);
 static gint uxsock_remove(void);
@@ -59,6 +61,8 @@ static void received_contacts_request(gint);
 static void received_finished_notification(gint);
 static void received_contact_modify_request(gint);
 static void received_contact_delete_request(gint);
+static void received_contact_add_request(gint);
+static gchar* get_next_contact(void);
 
 static gboolean sock_send(int, char*);
 
@@ -169,7 +173,7 @@ static void received_contact_modify_request(gint fd)
 static void received_contact_delete_request(gint fd)
 {
 	gchar buf[BUFFSIZE];
-	gboolean delete_successful = FALSE;
+	gboolean delete_successful= FALSE;
 
 	if (fd_gets(fd, buf, sizeof(buf)) != -1) {
 		gchar *id;
@@ -186,6 +190,25 @@ static void received_contact_delete_request(gint fd)
 	sock_send(fd, ":ok:\n");
 	else
 	sock_send(fd, ":failure:\n");
+}
+
+static void received_contact_add_request(gint fd)
+{
+	gchar *vcard;
+
+	vcard = get_next_contact();
+
+	if (vcard) {
+		g_print(" Contact to add: '%s'\n",vcard);
+		gchar *msg;
+		sock_send(fd,":start_contact:\n");
+		msg = g_strdup_printf("%s\n",vcard);
+		sock_send(fd,msg);
+		g_free(msg);
+		sock_send(fd,":end_contact:\n");
+	}
+	else
+		sock_send(fd, ":failure:\n");
 }
 
 static gboolean listen_channel_input_cb(GIOChannel *chan, GIOCondition cond,
@@ -208,6 +231,8 @@ static gboolean listen_channel_input_cb(GIOChannel *chan, GIOCondition cond,
 		received_contact_modify_request(answer_sock);
 		else if(g_str_has_prefix(buf, ":delete_contact:"))
 		received_contact_delete_request(answer_sock);
+		else if(g_str_has_prefix(buf, ":add_contact:"))
+		received_contact_add_request(answer_sock);
 		else if(g_str_has_prefix(buf,":finished:")) {
 			received_finished_notification(answer_sock);
 			break;
@@ -354,4 +379,62 @@ static void update_ItemPerson_from_vcard(ItemPerson *item, gchar *vcard)
 		}
 
 	} /* for all attributes */
+}
+
+static gchar* get_next_contact(void)
+{
+	char *line;
+	char *vcard;
+	char *vcard_tmp;
+	gboolean complete= FALSE;
+
+	vcard = g_strdup("");
+	while (!complete && ((line = sock_get_next_line(answer_sock)) != NULL)) {
+		if (g_str_has_prefix(line, ":done:")) {
+			g_free(vcard);
+			vcard = NULL;
+			break;
+		}
+		else if (g_str_has_prefix(line, ":start_contact:")) {
+			continue;
+		}
+		else if (g_str_has_prefix(line, ":end_contact:")) {
+			complete = TRUE;
+			continue;
+		}
+
+		/* append line to vcard string */
+		vcard_tmp = vcard;
+		vcard = g_strconcat(vcard_tmp, line, NULL);
+		g_free(vcard_tmp);
+	};
+
+	return vcard;
+}
+
+static char* sock_get_next_line(int fd)
+{
+	int n;
+	static char buf[BUFFSIZE];
+	char *newline, *bp, *nl;
+	int len;
+
+	len = BUFFSIZE-1;
+	bp = buf;
+	do {
+		if ((n = recv(fd, bp, len, MSG_PEEK)) <= 0)
+			return NULL;
+		else {
+			if ((newline = memchr(bp, '\n', n)) != NULL)
+				n = newline - bp + 1;
+			if ((n = read(fd, bp, n)) < 0)
+				return NULL;
+			bp += n;
+			len -= n;
+		}
+	} while (!newline && len);
+	nl = strchr(buf, '\n');
+	if (nl)
+		*(nl+1) = '\0';
+	return buf;
 }
