@@ -13,14 +13,29 @@ OpenSync
 Claws Mail
   (for all contacts)
    :start_contact:
-   (vcard as a string)
+   (vcard as strings)
    :end_contact:
  :done:
 
 OpenSync
- :change_contact:
+ :modify_contact:
  (contact ID)
- (vcard as a string)
+ (vcard as strings)
  :done:
 Claws Mail
  :ok:  | :failure:
+
+OpenSync
+ :delete_contact:
+ (UID)
+Claws Mail
+ :ok: | :failure:
+
+OpenSync
+ :add_contact:
+ (vcard as strings, without UID field)
+ :done:
+Claws Mail
+ :start_contact:                | :failure:
+ (vcard of newly added contact) |
+ :end_contact:                  |
