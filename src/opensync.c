@@ -1,4 +1,4 @@
-/* OpenSync plugin for Claws-Mail
+/* OpenSync plugin for Claws Mail
  * Copyright (C) 2007 Holger Berndt
  *
  * This program is free software; you can redistribute it and/or modify
@@ -287,7 +287,10 @@ static gchar* vcard_get_from_ItemPerson(ItemPerson *item)
 
   /* Name */
   attr = vformat_attribute_new(NULL,"N");
-  vformat_add_attribute_with_value(vformat, attr,ADDRITEM_NAME(item));
+  vformat_add_attribute_with_values(vformat, attr,
+				    item->lastName ? item->lastName  : "",
+				    item->firstName? item->firstName : "",
+				    NULL);
 
   vcard = vformat_to_string(vformat, VFORMAT_CARD_21);
   vformat_free(vformat);

@@ -1,4 +1,4 @@
-/* OpenSync plugin for Claws-Mail
+/* OpenSync plugin for Claws Mail
  * Copyright (C) 2007 Holger Berndt
  *
  * This program is free software; you can redistribute it and/or modify
