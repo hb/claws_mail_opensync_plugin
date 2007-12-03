@@ -211,7 +211,7 @@ int main(void)
 
 	sock_send(uxsock, ":change_contact:\n");
 	sock_send(uxsock, "194022980\n");
-	sock_send(uxsock, "this is\n the vcard\n\n");
+	sock_send(uxsock, "BEGIN:VCARD\nVERSION:2.1\nN:Mustermann;Hans\nADR;TYPE=home:;;Musterstraße 1;Musterstadt;;12345;Deutschland\nTEL;HOME;VOICE:+49 1234 56788\nTEL;TYPE=CELL:+49 1234 56789\nTEL;HOME;FAX:+49 1234 12345\nEND:VCARD\n");
 	sock_send(uxsock, ":done:\n");
 	sock_eval_answer(uxsock);
 

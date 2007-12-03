@@ -37,6 +37,8 @@
 #include <string.h>
 #include <errno.h>
 
+#include "vformat.h"
+
 #define BUFFSIZE 8192
 
 typedef struct
@@ -270,22 +272,61 @@ static gint addrbook_entry_send(ItemPerson *itemperson,
 	return 0;
 }
 
+/* TODO: Make this more complete */
 static gchar* vcard_get_from_ItemPerson(ItemPerson *item)
 {
-	gchar *vcard;
+  VFormat *vformat;
+  gchar *vcard;
+  VFormatAttribute *attr;
 
-	vcard = g_strdup_printf("BEGIN:VCARD\n"
-	                        "VERSION:2.1\n"
-	                        "N:%s\n"
-	                        "UID:%s\n"
-	                        "END:VCARD\n",
-	                        ADDRITEM_NAME(item),
-	                        ADDRITEM_ID(item));
-	return vcard;
+  vformat = vformat_new();
+
+  /* UID */
+  attr = vformat_attribute_new(NULL,"UID");
+  vformat_add_attribute_with_value(vformat, attr,ADDRITEM_ID(item));
+
+  /* Name */
+  attr = vformat_attribute_new(NULL,"N");
+  vformat_add_attribute_with_value(vformat, attr,ADDRITEM_NAME(item));
+
+  vcard = vformat_to_string(vformat, VFORMAT_CARD_21);
+  vformat_free(vformat);
+
+  return vcard;
 }
 
-/* TODO: make this work */
+/* TODO: Make this more complete */
 static void update_ItemPerson_from_vcard(ItemPerson *item, gchar *vcard)
 {
-	g_print("vcard to update from is: '%s'\n",vcard);
+  VFormat *vformat;
+  GList *attr_list, *walk;
+
+  g_print("Update ItemPerson from vcard:\n");
+
+  vformat = vformat_new_from_string(vcard);
+
+  attr_list = vformat_get_attributes(vformat);
+  for(walk = attr_list; walk; walk = walk->next) {
+    VFormatAttribute *attr;
+    const char *attr_name;
+
+    attr = walk->data;
+    attr_name = vformat_attribute_get_name(attr);
+
+    /* UID */
+    if(!strcmp(attr_name,"UID")) {
+      if(!vformat_attribute_is_single_valued(attr))
+	g_print("Error: UID is supposed to be single valued\n");
+      else {
+	g_print(" UID: '%s'\n", vformat_attribute_get_value(attr));
+      }
+    }
+
+    /* Name */
+    else if(!strcmp(attr_name,"N")) {
+      g_print(" Last name: '%s'\n", vformat_attribute_get_nth_value(attr, 0));
+      g_print(" First name: '%s'\n", vformat_attribute_get_nth_value(attr, 1));
+    }
+    
+  } /* for all attributes */
 }

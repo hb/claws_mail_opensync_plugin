@@ -5,7 +5,8 @@ plugin_LTLIBRARIES = opensync.la
 
 opensync_la_SOURCES = \
 	opensync_plugin.c \
-	opensync.c
+	opensync.c \
+	vformat.c vformat.h \
 	gettext.h
 
 opensync_la_LDFLAGS = \
