@@ -28,6 +28,7 @@
 #include "socket.h"
 #include "addrindex.h"
 #include "addritem.h"
+#include "addrduplicates.h"
 
 #ifdef HAVE_GETUID
 # include <unistd.h>
@@ -66,7 +67,7 @@ static gchar* get_next_contact(void);
 
 static gboolean sock_send(int, char*);
 
-static gint addrbook_entry_send(ItemPerson*, const gchar*);
+static gint addrbook_entry_send(ItemPerson*, AddressDataSource *ds);
 
 static gint uxsock = -1;
 static gint answer_sock = -1;
@@ -127,7 +128,7 @@ static void received_finished_notification(gint answer_sock)
 static void received_contacts_request(gint fd)
 {
 	g_print("Sending contacts\n");
-	addrindex_load_person_attribute(NULL, addrbook_entry_send);
+	addrindex_load_person_ds(addrbook_entry_send);
 	sock_send(answer_sock, ":done:\n");
 	g_print("Sending of contacts done\n");
 }
@@ -181,15 +182,17 @@ static void received_contact_delete_request(gint fd)
 		id = g_strchomp(buf);
 		hash_val = g_hash_table_lookup(contact_hash, id);
 
-		if (hash_val) {
-			g_print("about to delete id: '%s'\n", id);
-			delete_successful = TRUE;
+		if (hash_val &&
+		    addrduplicates_delete_item_person(hash_val->person,
+						      hash_val->ds)) {
+		  g_print("Deleted id: '%s'\n", id);
+		  delete_successful = TRUE;
 		}
 	}
 	if(delete_successful)
-	sock_send(fd, ":ok:\n");
+	  sock_send(fd, ":ok:\n");
 	else
-	sock_send(fd, ":failure:\n");
+	  sock_send(fd, ":failure:\n");
 }
 
 static void received_contact_add_request(gint fd)
@@ -295,7 +298,7 @@ static gchar* opensync_get_socket_name(void)
 	return filename;
 }
 
-static gint addrbook_entry_send(ItemPerson *itemperson, const gchar *book)
+static gint addrbook_entry_send(ItemPerson *itemperson, AddressDataSource *ds)
 {
 	gchar *vcard;
 	ContactHashVal *val;
@@ -313,7 +316,7 @@ static gint addrbook_entry_send(ItemPerson *itemperson, const gchar *book)
 
 	val = g_new0(ContactHashVal,1);
 	val->person = itemperson;
-	// TODO: Save AddressDataSource
+	val->ds     = ds;
 	g_hash_table_insert(contact_hash, g_strdup(ADDRITEM_ID(itemperson)), val);
 
 	return 0;

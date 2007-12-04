@@ -1,6 +1,7 @@
 Protocol:
+=========
 
-(all lines end with \n)
+(all transmitted lines end with \n)
 
 OpenSync
  :finished:
@@ -34,9 +35,11 @@ Claws Mail
 OpenSync
  :add_contact:
  :start_contact:
- (vcard as strings, without UID field)
+ (vcard as strings)
  :end_contact:
 Claws Mail
- :start_contact:                | :failure:
- (vcard of newly added contact) |
- :end_contact:                  |
+ :start_contact:                 | :failure:
+ (vcard of newly added contact)  |
+ :end_contact:                   |
+ (Claws Mail may change the UID) |
+ (so it returns the result     ) |

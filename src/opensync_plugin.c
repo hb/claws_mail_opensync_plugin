@@ -1,4 +1,4 @@
-/* OpenSync plugin for Claws-Mail
+/* OpenSync plugin for Claws Mail
  * Copyright (C) 2007 Holger Berndt
  *
  * This program is free software; you can redistribute it and/or modify
@@ -59,7 +59,7 @@ const gchar *plugin_desc(void)
 	return _("This plugin offers an interface to "
 	         "OpenSync. It does nothing user-visible "
 	         "by itself, but has to be loaded in order to "
-	         "use the Claws-Mail plugin for OpenSync.\nFeedback "
+	         "use the Claws Mail plugin for OpenSync.\nFeedback "
 	         "to <berndth@gmx.de> is welcome.");
 }
 
