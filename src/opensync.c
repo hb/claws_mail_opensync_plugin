@@ -29,6 +29,7 @@
 #include "addrindex.h"
 #include "addritem.h"
 #include "addrduplicates.h"
+#include "alertpanel.h"
 
 #ifdef HAVE_GETUID
 # include <unistd.h>
@@ -39,6 +40,7 @@
 #include <errno.h>
 
 #include "vformat.h"
+#include "opensync_prefs.h"
 
 #define BUFFSIZE 8192
 
@@ -135,6 +137,7 @@ static void received_contacts_request(gint fd)
 	g_print("Sending of contacts done\n");
 }
 
+/* TODO: implement this correctly */
 static void received_contact_modify_request(gint fd)
 {
 	gchar buf[BUFFSIZE];
@@ -184,34 +187,59 @@ static void received_contact_delete_request(gint fd)
 		id = g_strchomp(buf);
 		hash_val = g_hash_table_lookup(contact_hash, id);
 
-		if (hash_val &&
-		    addrduplicates_delete_item_person(hash_val->person,
-						      hash_val->ds)) {
-		  g_print("Deleted id: '%s'\n", id);
-		  delete_successful = TRUE;
+		if (hash_val) {
+			AlertValue val;
+			val = G_ALERTALTERNATE;
+			if(opensync_config.ask_delete) {
+				gchar *msg;
+				msg = g_strdup_printf(_("Really delete contact for '%s'?"),
+				ADDRITEM_NAME(hash_val->person));
+				val = alertpanel(_("OpenSync plugin"),msg,
+				GTK_STOCK_CANCEL,GTK_STOCK_DELETE,NULL);
+				g_free(msg);
+			}
+			if(((!opensync_config.ask_delete) || (val != G_ALERTDEFAULT)) &&
+			(addrduplicates_delete_item_person(hash_val->person,hash_val->ds))) {
+				g_print("Deleted id: '%s'\n", id);
+				delete_successful = TRUE;
+			}
 		}
 	}
 	if(delete_successful)
-	  sock_send(fd, ":ok:\n");
+	sock_send(fd, ":ok:\n");
 	else
-	  sock_send(fd, ":failure:\n");
+	sock_send(fd, ":failure:\n");
 }
 
 static void received_contact_add_request(gint fd)
 {
 	gchar *vcard;
+	gchar *msg;
 
 	vcard = get_next_contact();
 
 	if (vcard) {
-		gchar *msg;
-		g_print(" Contact to add: '%s'\n",vcard);
-		/* TODO: really add contact */
-		sock_send(fd,":start_contact:\n");
-		msg = g_strdup_printf("%s\n",vcard);
-		sock_send(fd,msg);
-		g_free(msg);
-		sock_send(fd,":end_contact:\n");
+		AlertValue val;
+		val = G_ALERTALTERNATE;
+		if (opensync_config.ask_add) {
+			msg = g_strdup_printf(_("Really add contact:\n%s?"),vcard);
+			val = alertpanel(_("OpenSync plugin"),msg,
+			GTK_STOCK_CANCEL,GTK_STOCK_ADD,NULL);
+			g_free(msg);
+		}
+		if (!opensync_config.ask_add || (val != G_ALERTDEFAULT)) {
+			g_print(" Contact to add: '%s'\n", vcard);
+			/* TODO: really add contact */
+			sock_send(fd, ":start_contact:\n");
+			msg = g_strdup_printf("%s\n", vcard);
+			sock_send(fd, msg);
+			g_free(msg);
+			sock_send(fd, ":end_contact:\n");
+		}
+		else {
+			g_print("Refused to add contact '%s'\n", vcard);
+			sock_send(fd, ":failure:\n");
+		}
 	}
 	else
 		sock_send(fd, ":failure:\n");
@@ -319,140 +347,140 @@ static gint addrbook_entry_send(ItemPerson *itemperson, AddressDataSource *ds)
 
 	val = g_new0(ContactHashVal,1);
 	val->person = itemperson;
-	val->ds     = ds;
+	val->ds = ds;
 	g_hash_table_insert(contact_hash, g_strdup(ADDRITEM_ID(itemperson)), val);
 
 	return 0;
 }
 
-/* TODO: Make this more complete */
 static gchar* vcard_get_from_ItemPerson(ItemPerson *item)
 {
-  VFormat *vformat;
-  gchar *vcard;
-  VFormatParam *param;
-  VFormatAttribute *attr;
-  GList *walk;
-  
-  vformat = vformat_new();
+	VFormat *vformat;
+	gchar *vcard;
+	VFormatParam *param;
+	VFormatAttribute *attr;
+	GList *walk;
 
-  /* UID */
-  attr = vformat_attribute_new(NULL,"UID");
-  vformat_add_attribute_with_value(vformat, attr, ADDRITEM_ID(item));
-  
-  /* Name */
-  attr = vformat_attribute_new(NULL,"N");
-  vformat_add_attribute_with_values(vformat, attr,
-				    item->lastName ? item->lastName : "",
-				    item->firstName ? item->firstName : "",
-				    NULL);
+	vformat = vformat_new();
 
-  /* EMail addresses */
-  for(walk = item->listEMail; walk; walk = walk->next) {
-    gchar *email;
-    email = ((ItemEMail*)walk->data)->address;
-    attr = vformat_attribute_new(NULL,"EMAIL");
-    param = vformat_attribute_param_new("INTERNET");
-    vformat_attribute_add_param(attr, param);
-    vformat_add_attribute_with_value(vformat, attr, email);
-  }
+	/* UID */
+	attr = vformat_attribute_new(NULL,"UID");
+	vformat_add_attribute_with_value(vformat, attr, ADDRITEM_ID(item));
 
-  vcard = vformat_to_string(vformat, VFORMAT_CARD_21);
-  vformat_free(vformat);
+	/* Name */
+	attr = vformat_attribute_new(NULL,"N");
+	vformat_add_attribute_with_values(vformat, attr,
+			item->lastName ? item->lastName : "", item->firstName ? item->firstName
+					: "",
+			NULL);
 
-  return vcard;
+	/* EMail addresses */
+	for (walk = item->listEMail; walk; walk = walk->next) {
+		gchar *email;
+		email = ((ItemEMail*)walk->data)->address;
+		attr = vformat_attribute_new(NULL,"EMAIL");
+		param = vformat_attribute_param_new("INTERNET");
+		vformat_attribute_add_param(attr, param);
+		vformat_add_attribute_with_value(vformat, attr, email);
+	}
+
+	vcard = vformat_to_string(vformat, VFORMAT_CARD_21);
+	vformat_free(vformat);
+
+	return vcard;
 }
 
-/* TODO: Make this more complete */
 static void update_ItemPerson_from_vcard(ItemPerson *item, gchar *vcard)
 {
-  VFormat *vformat;
-  GList *attr_list, *walk;
-  gint numEmail;
-  GList *emailWalk;
-  GList *savedMailList;
-  
-  g_print("Update ItemPerson from vcard:\n");
-  
-  numEmail = 0;
-  
-  vformat = vformat_new_from_string(vcard);
-  
-  /* steal email list */
-  savedMailList = NULL;
-  for(emailWalk = item->listEMail; emailWalk; emailWalk = emailWalk->next) {
-    ItemEMail *itemEMail;
-    itemEMail = emailWalk->data;
-    itemEMail = addritem_person_remove_email(item, itemEMail);
-    if(itemEMail)
-      savedMailList = g_list_append(savedMailList, itemEMail);
-  }
+	VFormat *vformat;
+	GList *attr_list, *walk;
+	gint numEmail;
+	GList *emailWalk;
+	GList *savedMailList;
+
+	g_print("Update ItemPerson from vcard:\n");
+
+	numEmail = 0;
+
+	vformat = vformat_new_from_string(vcard);
+
+	/* steal email list */
+	savedMailList = NULL;
+	for (emailWalk = item->listEMail; emailWalk; emailWalk = emailWalk->next) {
+		ItemEMail *itemEMail;
+		itemEMail = emailWalk->data;
+		itemEMail = addritem_person_remove_email(item, itemEMail);
+		if (itemEMail)
+			savedMailList = g_list_append(savedMailList, itemEMail);
+	}
 
 	attr_list = vformat_get_attributes(vformat);
 	for (walk = attr_list; walk; walk = walk->next) {
-	  VFormatAttribute *attr;
-	  const char *attr_name;
-	  
-	  attr = walk->data;
-	  attr_name = vformat_attribute_get_name(attr);
-	  
-	  /* UID */
-	  if (!strcmp(attr_name, "UID")) {
-	    if (!vformat_attribute_is_single_valued(attr))
-	      g_print("Error: UID is supposed to be single valued\n");
-	    else {
-	      if(ADDRITEM_ID(item))
-		g_free(ADDRITEM_ID(item));
-	      ADDRITEM_ID(item) = g_strdup(vformat_attribute_get_value(attr));
-	    }
-	  }
-	  
-	  /* Name */
-	  else if (!strcmp(attr_name, "N")) {
-	    addritem_person_set_last_name(item,
-					  vformat_attribute_get_nth_value(attr, 0));
-	    addritem_person_set_first_name(item,
-					   vformat_attribute_get_nth_value(attr, 1));
-	  }
+		VFormatAttribute *attr;
+		const char *attr_name;
 
-	  /* Internet EMail addresses */
-	  else if(!strcmp(attr_name, "EMAIL")) {
+		attr = walk->data;
+		attr_name = vformat_attribute_get_name(attr);
 
-	    if (!vformat_attribute_is_single_valued(attr))
-	      g_print("Error: EMAIL is supposed to be single valued\n");
-	    else {
-	      GList *paramList, *paramWalk;
-	      paramList = vformat_attribute_get_params(attr);
-	      if(!paramList) {
-		/* INTERNET is default */
-		const gchar *email;
-		email = vformat_attribute_get_nth_value(attr, 0);
-		g_print("email: '%s'\n", email);
-		savedMailList = restore_or_add_email_address(item, savedMailList, email);
-	      }
-	      else {
-		for(paramWalk = paramList; paramWalk; paramWalk = paramWalk->next) {
-		  gchar *param;
-		  param = paramWalk->data;
-		  if(!strcmp(param, "INTERNET")) {
-		    const gchar *email;
-		    email = vformat_attribute_get_nth_value(attr, 0);
-		    g_print("email: '%s'\n", email);
-		    savedMailList = restore_or_add_email_address(item, savedMailList, email);
-		  }
+		/* UID */
+		if (!strcmp(attr_name, "UID")) {
+			if (!vformat_attribute_is_single_valued(attr))
+				g_print("Error: UID is supposed to be single valued\n");
+			else {
+				if (ADDRITEM_ID(item))
+					g_free(ADDRITEM_ID(item));
+				ADDRITEM_ID(item) = g_strdup(vformat_attribute_get_value(attr));
+			}
 		}
-	      }
-	    }
-	  } /* INTERNET Email addresses */
+
+		/* Name */
+		else if (!strcmp(attr_name, "N")) {
+			addritem_person_set_last_name(item, vformat_attribute_get_nth_value(attr,
+					0));
+			addritem_person_set_first_name(item, vformat_attribute_get_nth_value(
+					attr, 1));
+		}
+
+		/* Internet EMail addresses */
+		else if (!strcmp(attr_name, "EMAIL")) {
+
+			if (!vformat_attribute_is_single_valued(attr))
+				g_print("Error: EMAIL is supposed to be single valued\n");
+			else {
+				GList *paramList, *paramWalk;
+				paramList = vformat_attribute_get_params(attr);
+				if (!paramList) {
+					/* INTERNET is default */
+					const gchar *email;
+					email = vformat_attribute_get_nth_value(attr, 0);
+					g_print("email: '%s'\n", email);
+					savedMailList = restore_or_add_email_address(item, savedMailList,
+							email);
+				}
+				else {
+					for (paramWalk = paramList; paramWalk; paramWalk = paramWalk->next) {
+						gchar *param;
+						param = paramWalk->data;
+						if (!strcmp(param, "INTERNET")) {
+							const gchar *email;
+							email = vformat_attribute_get_nth_value(attr, 0);
+							g_print("email: '%s'\n", email);
+							savedMailList = restore_or_add_email_address(item, savedMailList,
+									email);
+						}
+					}
+				}
+			}
+		} /* INTERNET Email addresses */
 
 	} /* for all attributes */
 
-	/* savedMailList now contains the left-overs. Free it. 
-	   (if the sync went well, those are deleted entries) */
-	for(emailWalk = savedMailList; emailWalk; emailWalk = emailWalk->next) {
-	  ItemEMail *itemEMail;
-	  itemEMail = emailWalk->data;
-	  addritem_free_item_email(itemEMail);
+	/* savedMailList now contains the left-overs. Free it.
+	 (if the sync went well, those are deleted entries) */
+	for (emailWalk = savedMailList; emailWalk; emailWalk = emailWalk->next) {
+		ItemEMail *itemEMail;
+		itemEMail = emailWalk->data;
+		addritem_free_item_email(itemEMail);
 	}
 	g_list_free(savedMailList);
 }
@@ -516,34 +544,34 @@ static char* sock_get_next_line(int fd)
 }
 
 static GList* restore_or_add_email_address(ItemPerson *item, GList *savedList,
-					   const gchar *email)
+		const gchar *email)
 {
-  ItemEMail *itemMail;
-  GList *walk;
-  gboolean found;
-  gchar *addr;
-  
-  found = FALSE;
-  for(walk = savedList; walk; walk = walk->next) {
-    itemMail = walk->data;
-    addr = g_strchomp(g_strdup(itemMail->address));
-    if(!strcmp(addr, email))
-      found = TRUE;
-    g_free(addr);
-    if(found)
-      break;
-  }
+	ItemEMail *itemMail;
+	GList *walk;
+	gboolean found;
+	gchar *addr;
 
-  if(found) {
-    addritem_person_add_email(item, itemMail);
-    savedList = g_list_delete_link(savedList, walk);
-  }
-  else {
-    ItemEMail *newEMail;
-    newEMail = addritem_create_item_email();
-    addritem_email_set_address(newEMail, email);
-    addritem_person_add_email(item, newEMail);
-  }
+	found = FALSE;
+	for (walk = savedList; walk; walk = walk->next) {
+		itemMail = walk->data;
+		addr = g_strchomp(g_strdup(itemMail->address));
+		if (!strcmp(addr, email))
+			found = TRUE;
+		g_free(addr);
+		if (found)
+			break;
+	}
 
-  return savedList;
+	if (found) {
+		addritem_person_add_email(item, itemMail);
+		savedList = g_list_delete_link(savedList, walk);
+	}
+	else {
+		ItemEMail *newEMail;
+		newEMail = addritem_create_item_email();
+		addritem_email_set_address(newEMail, email);
+		addritem_person_add_email(item, newEMail);
+	}
+
+	return savedList;
 }

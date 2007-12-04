@@ -209,14 +209,14 @@ int main(void)
 	if(sock_send(uxsock, ":request_contacts:\n"))
 		sock_eval_answer(uxsock);
 
-	sock_send(uxsock, ":modify_contact:\n");
-	sock_send(uxsock, "194022980\n");
-	sock_send(uxsock, "BEGIN:VCARD\nVERSION:2.1\nN:Mustermann;Hans\nADR;TYPE=home:;;Musterstraße 1;Musterstadt;;12345;Deutschland\nTEL;HOME;VOICE:+49 1234 56788\nTEL;TYPE=CELL:+49 1234 56789\nTEL;HOME;FAX:+49 1234 12345\nEND:VCARD\n");
-	sock_send(uxsock, ":done:\n");
-	sock_eval_answer(uxsock);
+//	sock_send(uxsock, ":modify_contact:\n");
+//	sock_send(uxsock, "194022980\n");
+//	sock_send(uxsock, "BEGIN:VCARD\nVERSION:2.1\nN:Mustermann;Hans\nADR;TYPE=home:;;Musterstraße 1;Musterstadt;;12345;Deutschland\nTEL;HOME;VOICE:+49 1234 56788\nTEL;TYPE=CELL:+49 1234 56789\nTEL;HOME;FAX:+49 1234 12345\nEND:VCARD\n");
+//	sock_send(uxsock, ":done:\n");
+//	sock_eval_answer(uxsock);
 
 	sock_send(uxsock, ":delete_contact:\n");
-	sock_send(uxsock, "194022980\n");
+	sock_send(uxsock, "198778190\n");
 	sock_eval_answer(uxsock);
 
 	sock_send(uxsock, ":finished:\n");
