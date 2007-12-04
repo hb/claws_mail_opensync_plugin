@@ -21,31 +21,48 @@
 #include "pluginconfig.h"
 
 #include "opensync.h"
+#include "opensync_prefs.h"
+
 #include "gettext.h"
 
 #include "plugin.h"
 #include "version.h"
+#include "common/defs.h"
 
 #include <glib.h>
 
 gint plugin_init(gchar **error)
 {
-	bindtextdomain(TEXTDOMAIN, LOCALEDIR);
-	bind_textdomain_codeset(TEXTDOMAIN, "UTF-8");
+  gchar *rcpath;
 
-	/* Version check */
-	if(!check_plugin_version(MAKE_NUMERIC_VERSION(2,9,2,72),
-	                         VERSION_NUMERIC, _("OpenSync"), error))
-		return -1;
+  bindtextdomain(TEXTDOMAIN, LOCALEDIR);
+  bind_textdomain_codeset(TEXTDOMAIN, "UTF-8");
+  
+  /* Version check */
+  if(!check_plugin_version(MAKE_NUMERIC_VERSION(2,9,2,72),
+			   VERSION_NUMERIC, _("OpenSync"), error))
+    return -1;
+  
+  /* Configuration */
+  prefs_set_default(opensync_param);
+  rcpath = g_strconcat(get_rc_dir(), G_DIR_SEPARATOR_S, COMMON_RC, NULL);
+  prefs_read_config(opensync_param, "OpenSyncPlugin", rcpath, NULL);
+  g_free(rcpath);
+  
+  opensync_init();
 
-	opensync_init();
+  opensync_gtk_init();
 
-	return 0;
+  debug_print("OpenSync plugin loaded\n");
+  return 0;
 }
 
 gboolean plugin_done(void)
 {
   opensync_done();
+  opensync_save_config();
+  opensync_gtk_done();
+
   return TRUE;
 }
 
@@ -59,7 +76,7 @@ const gchar *plugin_desc(void)
 	return _("This plugin offers an interface to "
 	         "OpenSync. It does nothing user-visible "
 	         "by itself, but has to be loaded in order to "
-	         "use the Claws Mail plugin for OpenSync.\nFeedback "
+	         "use the Claws Mail plugin for OpenSync.\n\nFeedback "
 	         "to <berndth@gmx.de> is welcome.");
 }
 

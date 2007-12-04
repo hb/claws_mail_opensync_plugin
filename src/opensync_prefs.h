@@ -15,15 +15,24 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef OPENSYNC_H
-#define OPENSYNC_H
+#ifndef OPENSYNC_PREFS_H
+#define OPENSYNC_PREFS_H OPENSYNC_PREFS_H
 
 #ifdef HAVE_CONFIG_H
 #  include "config.h"
 #endif
 #include "pluginconfig.h"
 
-void opensync_init(void);
-void opensync_done(void);
+#include "prefs_gtk.h"
 
-#endif
+typedef struct {
+} OpenSyncPrefs;
+
+extern OpenSyncPrefs opensync_config;
+extern PrefParam     opensync_param[];
+
+void opensync_gtk_init(void);
+void opensync_gtk_done(void);
+void opensync_save_config(void);
+
+#endif /* OPENSYNC_PREFS_H */

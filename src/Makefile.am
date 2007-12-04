@@ -7,6 +7,7 @@ opensync_la_SOURCES = \
 	opensync_plugin.c \
 	opensync.c \
 	vformat.c vformat.h \
+	opensync_prefs.c opensync_prefs.h \
 	gettext.h
 
 opensync_la_LDFLAGS = \
