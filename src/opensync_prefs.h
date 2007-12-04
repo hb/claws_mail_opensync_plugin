@@ -26,6 +26,9 @@
 #include "prefs_gtk.h"
 
 typedef struct {
+	gboolean ask_add;
+	gboolean ask_delete;
+	gboolean ask_modify;
 } OpenSyncPrefs;
 
 extern OpenSyncPrefs opensync_config;
