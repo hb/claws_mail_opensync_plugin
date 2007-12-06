@@ -25,10 +25,18 @@
 
 #include "prefs_gtk.h"
 
+typedef enum {
+  OPENSYNC_ADDRESS_BOOK_INDIVIDUAL = 0,
+  OPENSYNC_ADDRESS_BOOK_DEFAULT,
+} OpenSyncAddressBookChoice;
+
+
 typedef struct {
 	gboolean ask_add;
 	gboolean ask_delete;
 	gboolean ask_modify;
+	OpenSyncAddressBookChoice addrbook_choice;
+	gchar *addrbook_folderpath;
 } OpenSyncPrefs;
 
 extern OpenSyncPrefs opensync_config;

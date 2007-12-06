@@ -21,6 +21,7 @@
 
 #include "prefs.h"
 #include "main.h"
+#include "addressbook.h"
 #include "common/defs.h"
 
 typedef struct
@@ -29,6 +30,10 @@ typedef struct
 	GtkWidget *ask_add;
 	GtkWidget *ask_delete;
 	GtkWidget *ask_modify;
+	GtkWidget *addrbook_choice_individual;
+	GtkWidget *addrbook_choice_default;
+	GtkWidget *addrbook_default_choice_cont;
+	GtkWidget *addrbook_folderpath;
 } OpenSyncPage;
 
 OpenSyncPrefs opensync_config;
@@ -36,16 +41,24 @@ OpenSyncPage opensync_page;
 
 PrefParam opensync_param[] =
 {
-{ "ask_add", "TRUE", &opensync_config.ask_add, P_BOOL, NULL, NULL, NULL },
-		{ "ask_delete", "TRUE", &opensync_config.ask_delete, P_BOOL, NULL, NULL,
-				NULL },
-		{ "ask_modify", "TRUE", &opensync_config.ask_modify, P_BOOL, NULL, NULL,
-				NULL },
-		{ NULL, NULL, NULL, P_OTHER, NULL, NULL, NULL } };
+	{ "ask_add", "TRUE", &opensync_config.ask_add, P_BOOL, NULL, NULL, NULL },
+	{ "ask_delete", "TRUE", &opensync_config.ask_delete, P_BOOL, NULL, NULL,
+		NULL },
+	{ "ask_modify", "TRUE", &opensync_config.ask_modify, P_BOOL, NULL, NULL,
+		NULL },
+	{	"addrbook_choice", "0", &opensync_config.addrbook_choice, P_INT, NULL, NULL, NULL},
+	{	"addrbook_folderpath", "", &opensync_config.addrbook_folderpath, P_STRING,
+		NULL, NULL, NULL},
+
+	{ NULL, NULL, NULL, P_OTHER, NULL, NULL, NULL }
+};
 
 static void opensync_create_prefs_page(PrefsPage*, GtkWindow*, gpointer);
 static void opensync_destroy_prefs_page(PrefsPage*);
 static void opensync_save_prefs(PrefsPage*);
+
+static void select_default_addressbook_clicked(void);
+static void radio_addressbook_choice_toggle(GtkToggleButton*,gpointer);
 
 void opensync_gtk_init(void)
 {
@@ -105,6 +118,11 @@ static void opensync_create_prefs_page(PrefsPage *page, GtkWindow *window,
 	GtkWidget *vbox;
 	GtkWidget *frame;
 	GtkWidget *checkbox;
+	GtkWidget *radio;
+	GtkWidget *hbox;
+	GtkWidget *hbox2;
+	GtkWidget *entry;
+	GtkWidget *button;
 
 	/* Page vbox */
 	pvbox = gtk_vbox_new(FALSE, 0);
@@ -140,6 +158,57 @@ static void opensync_create_prefs_page(PrefsPage *page, GtkWindow *window,
 	gtk_box_pack_start(GTK_BOX(vbox), checkbox, FALSE, FALSE, 0);
 	opensync_page.ask_modify = checkbox;
 
+	/* Frame */
+	frame = gtk_frame_new(_("Adding of contacts to Claws Mail's address book"));
+	gtk_container_set_border_width(GTK_CONTAINER(frame), 10);
+	gtk_box_pack_start(GTK_BOX(pvbox), frame, FALSE, FALSE, 0);
+
+	/* Frame vbox */
+	vbox = gtk_vbox_new(FALSE, 4);
+	gtk_container_add(GTK_CONTAINER(frame), vbox);
+	gtk_container_set_border_width(GTK_CONTAINER(vbox), 8);
+
+	/* Choice of addressbook */
+	radio = gtk_radio_button_new_with_label(NULL, _("Let me choose for each "
+			"contact individually"));
+  g_signal_connect(G_OBJECT(radio), "toggled",
+									 G_CALLBACK(radio_addressbook_choice_toggle),
+									 GINT_TO_POINTER(OPENSYNC_ADDRESS_BOOK_INDIVIDUAL));
+	gtk_box_pack_start(GTK_BOX(vbox), radio, FALSE, FALSE, 0);
+	if(opensync_config.addrbook_choice == OPENSYNC_ADDRESS_BOOK_INDIVIDUAL)
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radio), TRUE);
+	opensync_page.addrbook_choice_individual = radio;
+
+	hbox = gtk_hbox_new(FALSE, 20);
+
+	radio = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(radio),
+	_("Use default folder:"));
+  g_signal_connect(G_OBJECT(radio), "toggled",
+									 G_CALLBACK(radio_addressbook_choice_toggle),
+									 GINT_TO_POINTER(OPENSYNC_ADDRESS_BOOK_DEFAULT));
+	gtk_box_pack_start(GTK_BOX(hbox), radio, FALSE, FALSE, 0);
+	if(opensync_config.addrbook_choice == OPENSYNC_ADDRESS_BOOK_DEFAULT)
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radio), TRUE);
+	opensync_page.addrbook_choice_default = radio;
+
+	hbox2 = gtk_hbox_new(FALSE, 20);
+	opensync_page.addrbook_default_choice_cont = hbox2;
+	entry = gtk_entry_new();
+	if(opensync_config.addrbook_folderpath)
+		gtk_entry_set_text(GTK_ENTRY(entry), opensync_config.addrbook_folderpath);
+	gtk_box_pack_start(GTK_BOX(hbox2), entry, FALSE, FALSE, 0);
+	opensync_page.addrbook_folderpath = entry;
+	button = gtk_button_new_with_label(_("Select ..."));
+  g_signal_connect(G_OBJECT(button), "clicked",
+									 G_CALLBACK(select_default_addressbook_clicked), NULL);
+	gtk_box_pack_start(GTK_BOX(hbox2), button, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(hbox), hbox2, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+
+	/* sensitivity */
+	radio_addressbook_choice_toggle(GTK_TOGGLE_BUTTON(radio),
+																	GINT_TO_POINTER(OPENSYNC_ADDRESS_BOOK_DEFAULT));
+
 	/* Done. */
 	gtk_widget_show_all(pvbox);
 	page->widget = pvbox;
@@ -151,7 +220,55 @@ static void opensync_destroy_prefs_page(PrefsPage *page)
 
 static void opensync_save_prefs(PrefsPage *page)
 {
-	opensync_config.ask_add = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opensync_page.ask_add));
-	opensync_config.ask_delete = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opensync_page.ask_delete));
-	opensync_config.ask_modify = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opensync_page.ask_modify));
+	const gchar *tmp_str;
+
+	opensync_config.ask_add =
+		gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opensync_page.ask_add));
+	opensync_config.ask_delete =
+		gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opensync_page.ask_delete));
+	opensync_config.ask_modify =
+		gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opensync_page.ask_modify));
+
+	if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON
+																	(opensync_page.addrbook_choice_individual)))
+		opensync_config.addrbook_choice = OPENSYNC_ADDRESS_BOOK_INDIVIDUAL;
+	else if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON
+																	(opensync_page.addrbook_choice_default)))
+		opensync_config.addrbook_choice = OPENSYNC_ADDRESS_BOOK_DEFAULT;
+
+	tmp_str = gtk_entry_get_text(GTK_ENTRY(opensync_page.addrbook_folderpath));
+	g_free(opensync_config.addrbook_folderpath);
+	opensync_config.addrbook_folderpath = g_strdup(tmp_str);
+}
+
+static void select_default_addressbook_clicked(void)
+{
+  gchar *folderpath = NULL;
+  gchar *prev = NULL;
+  gboolean ret = FALSE;
+
+  prev = gtk_editable_get_chars(GTK_EDITABLE(opensync_page.addrbook_folderpath),
+																0, -1);
+  folderpath = prev;
+	/* TODO: fix this to new api */
+  ret = addressbook_folder_selection(&folderpath);
+  if(ret != FALSE && folderpath != NULL)
+    gtk_entry_set_text(GTK_ENTRY(opensync_page.addrbook_folderpath), folderpath);
+	if(ret)
+		g_free(folderpath);
+	else
+		g_free(prev);
+}
+
+/* This is just for sensitivity to stay conform with canceling the dialog */
+static void radio_addressbook_choice_toggle(GtkToggleButton *togglebutton,
+																						gpointer         user_data)
+{
+	gint type;
+	
+	type = GPOINTER_TO_INT(user_data);
+	if(type == OPENSYNC_ADDRESS_BOOK_DEFAULT) {
+		gtk_widget_set_sensitive(opensync_page.addrbook_default_choice_cont,
+														 gtk_toggle_button_get_active(togglebutton));
+	}
 }

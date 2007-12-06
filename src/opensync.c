@@ -28,6 +28,8 @@
 #include "socket.h"
 #include "addrindex.h"
 #include "addritem.h"
+#include "addrbook.h"
+#include "addressbook.h"
 #include "addrduplicates.h"
 #include "alertpanel.h"
 
@@ -137,7 +139,6 @@ static void received_contacts_request(gint fd)
 	g_print("Sending of contacts done\n");
 }
 
-/* TODO: implement this correctly */
 static void received_contact_modify_request(gint fd)
 {
 	gchar buf[BUFFSIZE];
@@ -158,7 +159,7 @@ static void received_contact_modify_request(gint fd)
 					break;
 				}
 				if(g_str_has_prefix(buf,":done:"))
-				done = TRUE;
+					done = TRUE;
 				else {
 					tmp = vcard;
 					vcard = g_strconcat(tmp,buf,NULL);
@@ -193,29 +194,33 @@ static void received_contact_delete_request(gint fd)
 			if(opensync_config.ask_delete) {
 				gchar *msg;
 				msg = g_strdup_printf(_("Really delete contact for '%s'?"),
-				ADDRITEM_NAME(hash_val->person));
+															ADDRITEM_NAME(hash_val->person));
 				val = alertpanel(_("OpenSync plugin"),msg,
-				GTK_STOCK_CANCEL,GTK_STOCK_DELETE,NULL);
+												 GTK_STOCK_CANCEL,GTK_STOCK_DELETE,NULL);
 				g_free(msg);
 			}
 			if(((!opensync_config.ask_delete) || (val != G_ALERTDEFAULT)) &&
-			(addrduplicates_delete_item_person(hash_val->person,hash_val->ds))) {
+				 (addrduplicates_delete_item_person(hash_val->person,hash_val->ds))) {
 				g_print("Deleted id: '%s'\n", id);
 				delete_successful = TRUE;
 			}
 		}
 	}
-	if(delete_successful)
-	sock_send(fd, ":ok:\n");
-	else
-	sock_send(fd, ":failure:\n");
+	if(delete_successful) {
+	  sock_send(fd, ":ok:\n");
+	}
+	else {
+	  sock_send(fd, ":failure:\n");
+	}
 }
 
 static void received_contact_add_request(gint fd)
 {
 	gchar *vcard;
 	gchar *msg;
+	gboolean add_successful;
 
+	add_successful = FALSE;
 	vcard = get_next_contact();
 
 	if (vcard) {
@@ -224,29 +229,55 @@ static void received_contact_add_request(gint fd)
 		if (opensync_config.ask_add) {
 			msg = g_strdup_printf(_("Really add contact:\n%s?"),vcard);
 			val = alertpanel(_("OpenSync plugin"),msg,
-			GTK_STOCK_CANCEL,GTK_STOCK_ADD,NULL);
+											 GTK_STOCK_CANCEL,GTK_STOCK_ADD,NULL);
 			g_free(msg);
 		}
 		if (!opensync_config.ask_add || (val != G_ALERTDEFAULT)) {
-			g_print(" Contact to add: '%s'\n", vcard);
-			/* TODO: really add contact */
-			sock_send(fd, ":start_contact:\n");
-			msg = g_strdup_printf("%s\n", vcard);
-			sock_send(fd, msg);
-			g_free(msg);
-			sock_send(fd, ":end_contact:\n");
+			ItemPerson *person;
+			gchar *path = NULL;
+			AddressDataSource *book = NULL;
+			ItemFolder *folder = NULL;
+			AddressBookFile *abf = NULL;
+
+			if(opensync_config.addrbook_choice == OPENSYNC_ADDRESS_BOOK_INDIVIDUAL)
+				/* TODO: fix this towards new api */
+				addressbook_folder_selection(&path);
+			if(!path)
+				path = g_strdup(opensync_config.addrbook_folderpath);
+
+			if (addressbook_peek_folder_exists(path, &book, &folder) && book) {
+				abf = book->rawDataSource;
+				person = addrbook_add_contact(abf, folder, NULL, NULL, NULL);
+				person->status = ADD_ENTRY;
+				addressbook_refresh();
+				update_ItemPerson_from_vcard(person, vcard);
+				add_successful = TRUE;
+			}
+			else
+				g_warning("addressbook folder not found '%s'\n", path);
+			g_free(path);
 		}
 		else {
-			g_print("Refused to add contact '%s'\n", vcard);
-			sock_send(fd, ":failure:\n");
+			g_print("Error: User refused to add contact '%s'\n", vcard);
 		}
 	}
-	else
-		sock_send(fd, ":failure:\n");
+	else {
+		g_print("Error: Not able to get the contact to add\n");
+	}
+	if(add_successful) {
+	  sock_send(fd, ":start_contact:\n");
+	  msg = g_strdup_printf("%s\n", vcard);
+	  sock_send(fd, msg);
+	  g_free(msg);
+	  sock_send(fd, ":end_contact:\n");	  
+	}
+	else {
+	  sock_send(fd, ":failure:\n");
+	}
 }
 
 static gboolean listen_channel_input_cb(GIOChannel *chan, GIOCondition cond,
-		gpointer data)
+																				gpointer data)
 {
 	gint sock;
 	gchar buf[BUFFSIZE];
@@ -260,13 +291,13 @@ static gboolean listen_channel_input_cb(GIOChannel *chan, GIOCondition cond,
 	while (fd_gets(answer_sock, buf, sizeof(buf)) != -1) {
 		g_print("Received request: %s", buf);
 		if(g_str_has_prefix(buf,":request_contacts:"))
-		received_contacts_request(answer_sock);
+			received_contacts_request(answer_sock);
 		else if(g_str_has_prefix(buf, ":modify_contact:"))
-		received_contact_modify_request(answer_sock);
+			received_contact_modify_request(answer_sock);
 		else if(g_str_has_prefix(buf, ":delete_contact:"))
-		received_contact_delete_request(answer_sock);
+			received_contact_delete_request(answer_sock);
 		else if(g_str_has_prefix(buf, ":add_contact:"))
-		received_contact_add_request(answer_sock);
+			received_contact_add_request(answer_sock);
 		else if(g_str_has_prefix(buf,":finished:")) {
 			received_finished_notification(answer_sock);
 			break;
@@ -317,13 +348,13 @@ static gchar* opensync_get_socket_name(void)
 
 	if (filename == NULL) {
 		filename = g_strdup_printf("%s%cclaws-mail-opensync-%d", g_get_tmp_dir(),
-		G_DIR_SEPARATOR,
+															 G_DIR_SEPARATOR,
 #if HAVE_GETUID
-				getuid()
+															 getuid()
 #else
-				0
+															 0
 #endif
-		);
+															 );
 	}
 
 	return filename;
@@ -343,7 +374,7 @@ static gint addrbook_entry_send(ItemPerson *itemperson, AddressDataSource *ds)
 	/* Remember contacts for easier changing */
 	if (!contact_hash)
 		contact_hash = g_hash_table_new_full(g_str_hash, g_str_equal, g_free,
-				g_free);
+																				 g_free);
 
 	val = g_new0(ContactHashVal,1);
 	val->person = itemperson;
@@ -370,9 +401,9 @@ static gchar* vcard_get_from_ItemPerson(ItemPerson *item)
 	/* Name */
 	attr = vformat_attribute_new(NULL,"N");
 	vformat_add_attribute_with_values(vformat, attr,
-			item->lastName ? item->lastName : "", item->firstName ? item->firstName
-					: "",
-			NULL);
+																		item->lastName ? item->lastName : "", item->firstName ? item->firstName
+																		: "",
+																		NULL);
 
 	/* EMail addresses */
 	for (walk = item->listEMail; walk; walk = walk->next) {
@@ -435,15 +466,24 @@ static void update_ItemPerson_from_vcard(ItemPerson *item, gchar *vcard)
 
 		/* Name */
 		else if (!strcmp(attr_name, "N")) {
-			addritem_person_set_last_name(item, vformat_attribute_get_nth_value(attr,
-					0));
-			addritem_person_set_first_name(item, vformat_attribute_get_nth_value(
-					attr, 1));
+			const gchar *first_name;
+			const gchar *last_name;
+			gchar *display_name;
+
+			last_name = vformat_attribute_get_nth_value(attr,0);
+			first_name = vformat_attribute_get_nth_value(attr, 1);
+
+			addritem_person_set_last_name(item, last_name);
+			addritem_person_set_first_name(item, first_name);
+
+			display_name = g_strdup_printf("%s %s",first_name,last_name);
+			addritem_person_set_common_name(item, display_name);
+			
+			g_free(display_name);
 		}
 
 		/* Internet EMail addresses */
 		else if (!strcmp(attr_name, "EMAIL")) {
-
 			if (!vformat_attribute_is_single_valued(attr))
 				g_print("Error: EMAIL is supposed to be single valued\n");
 			else {
@@ -455,18 +495,19 @@ static void update_ItemPerson_from_vcard(ItemPerson *item, gchar *vcard)
 					email = vformat_attribute_get_nth_value(attr, 0);
 					g_print("email: '%s'\n", email);
 					savedMailList = restore_or_add_email_address(item, savedMailList,
-							email);
+																											 email);
 				}
 				else {
 					for (paramWalk = paramList; paramWalk; paramWalk = paramWalk->next) {
-						gchar *param;
+						VFormatParam *param;
 						param = paramWalk->data;
-						if (!strcmp(param, "INTERNET")) {
+						if (param && param->name && param->values && param->values->data &&
+								!strcmp(param->name, "TYPE") &&
+								!strcmp((char*)param->values->data, "INTERNET")) {
 							const gchar *email;
 							email = vformat_attribute_get_nth_value(attr, 0);
-							g_print("email: '%s'\n", email);
 							savedMailList = restore_or_add_email_address(item, savedMailList,
-									email);
+																													 email);
 						}
 					}
 				}
@@ -476,13 +517,16 @@ static void update_ItemPerson_from_vcard(ItemPerson *item, gchar *vcard)
 	} /* for all attributes */
 
 	/* savedMailList now contains the left-overs. Free it.
-	 (if the sync went well, those are deleted entries) */
+		 (if the sync went well, those are deleted entries) */
 	for (emailWalk = savedMailList; emailWalk; emailWalk = emailWalk->next) {
 		ItemEMail *itemEMail;
 		itemEMail = emailWalk->data;
 		addritem_free_item_email(itemEMail);
 	}
 	g_list_free(savedMailList);
+
+	item->status = UPDATE_ENTRY;
+	addressbook_refresh();
 }
 
 static gchar* get_next_contact(void)
@@ -544,7 +588,7 @@ static char* sock_get_next_line(int fd)
 }
 
 static GList* restore_or_add_email_address(ItemPerson *item, GList *savedList,
-		const gchar *email)
+																					 const gchar *email)
 {
 	ItemEMail *itemMail;
 	GList *walk;
@@ -554,12 +598,14 @@ static GList* restore_or_add_email_address(ItemPerson *item, GList *savedList,
 	found = FALSE;
 	for (walk = savedList; walk; walk = walk->next) {
 		itemMail = walk->data;
-		addr = g_strchomp(g_strdup(itemMail->address));
-		if (!strcmp(addr, email))
-			found = TRUE;
-		g_free(addr);
-		if (found)
-			break;
+		if(itemMail && itemMail->address) {
+			addr = g_strchomp(g_strdup(itemMail->address));
+			if (!strcmp(addr, email))
+				found = TRUE;
+			g_free(addr);
+			if (found)
+				break;
+		}
 	}
 
 	if (found) {
