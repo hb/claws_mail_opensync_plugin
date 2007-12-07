@@ -458,8 +458,7 @@ static void update_ItemPerson_from_vcard(ItemPerson *item, gchar *vcard)
 			if (!vformat_attribute_is_single_valued(attr))
 				g_print("Error: UID is supposed to be single valued\n");
 			else {
-				if (ADDRITEM_ID(item))
-					g_free(ADDRITEM_ID(item));
+				g_free(ADDRITEM_ID(item));
 				ADDRITEM_ID(item) = g_strdup(vformat_attribute_get_value(attr));
 			}
 		}
@@ -494,8 +493,7 @@ static void update_ItemPerson_from_vcard(ItemPerson *item, gchar *vcard)
 					const gchar *email;
 					email = vformat_attribute_get_nth_value(attr, 0);
 					g_print("email: '%s'\n", email);
-					savedMailList = restore_or_add_email_address(item, savedMailList,
-																											 email);
+					savedMailList = restore_or_add_email_address(item, savedMailList,email);
 				}
 				else {
 					for (paramWalk = paramList; paramWalk; paramWalk = paramWalk->next) {
