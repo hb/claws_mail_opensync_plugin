@@ -215,14 +215,24 @@ int main(void)
 //	sock_send(uxsock, ":done:\n");
 //	sock_eval_answer(uxsock);
 
+#if 0
 	sock_send(uxsock, ":add_contact:\n");
 	sock_send(uxsock, ":start_contact:\n");
-	sock_send(uxsock, "BEGIN:VCARD\nVERSION:2.1\nN:Mustermann;Hans\nADR;TYPE=home:;;Musterstraße 1;Musterstadt;;12345;Deutschland\nEMAIL;INTERNET:hans.mustermann@example.org\nTEL;HOME;VOICE:+49 1234 56788\nTEL;TYPE=CELL:+49 1234 56789\nTEL;HOME;FAX:+49 1234 12345\nEMAIL;INTERNET:hans.mustermann@ex2.org\nEND:VCARD\n");
+	sock_send(uxsock, "BEGIN:VCARD\nVERSION:2.1\nUID:1234\nN:Mustermann;Hans\nADR;TYPE=home:;;Musterstraße 1;Musterstadt;;12345;Deutschland\nEMAIL;INTERNET:hans.mustermann@example.org\nTEL;HOME;VOICE:+49 1234 56788\nTEL;TYPE=CELL:+49 1234 56789\nTEL;HOME;FAX:+49 1234 12345\nEMAIL;INTERNET:hans.mustermann@ex2.org\nEND:VCARD\n");
 	sock_send(uxsock, ":end_contact:\n");
+#endif
 
-						//	sock_send(uxsock, ":delete_contact:\n");
-						//	sock_send(uxsock, "198778190\n");
-						//	sock_eval_answer(uxsock);
+#if 1
+	/* change UID, del one email, change the other email */
+	sock_send(uxsock, ":modify_contact:\n");
+	sock_send(uxsock, "1234\n");
+	sock_send(uxsock, "BEGIN:VCARD\nVERSION:2.1\nUID:1534\nN:Mustermann;Hans\nADR;TYPE=home:;;Musterstraße 1;Musterstadt;;12345;Deutschland\nEMAIL;INTERNET:h.m@example.org\nTEL;HOME;VOICE:+49 1234 56788\nTEL;TYPE=CELL:+49 1234 56789\nTEL;HOME;FAX:+49 1234 12345\nEND:VCARD\n");
+	sock_send(uxsock, ":done:\n");
+#endif
+
+	//	sock_send(uxsock, ":delete_contact:\n");
+	//	sock_send(uxsock, "198778190\n");
+	//	sock_eval_answer(uxsock);
 
 	sock_send(uxsock, ":finished:\n");
 

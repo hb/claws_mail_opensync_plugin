@@ -167,6 +167,7 @@ static void received_contact_modify_request(gint fd)
 				}
 			}
 			update_ItemPerson_from_vcard(hash_val->person, vcard);
+			addrbook_set_dirty((AddressBookFile*)hash_val->ds->rawDataSource,TRUE);
 			sock_send(fd, ":ok:\n");
 			g_free(vcard);
 		}
@@ -249,8 +250,8 @@ static void received_contact_add_request(gint fd)
 				abf = book->rawDataSource;
 				person = addrbook_add_contact(abf, folder, NULL, NULL, NULL);
 				person->status = ADD_ENTRY;
-				addressbook_refresh();
 				update_ItemPerson_from_vcard(person, vcard);
+				addrbook_set_dirty(abf,TRUE);
 				add_successful = TRUE;
 			}
 			else
@@ -526,7 +527,6 @@ static void update_ItemPerson_from_vcard(ItemPerson *item, gchar *vcard)
 	g_list_free(savedMailList);
 
 	item->status = UPDATE_ENTRY;
-	addressbook_refresh();
 }
 
 static gchar* get_next_contact(void)
