@@ -241,8 +241,7 @@ static void received_contact_add_request(gint fd)
 			AddressBookFile *abf = NULL;
 
 			if(opensync_config.addrbook_choice == OPENSYNC_ADDRESS_BOOK_INDIVIDUAL)
-				/* TODO: fix this towards new api */
-				addressbook_folder_selection(&path);
+				path = addressbook_folder_selection(NULL);
 			if(!path)
 				path = g_strdup(opensync_config.addrbook_folderpath);
 

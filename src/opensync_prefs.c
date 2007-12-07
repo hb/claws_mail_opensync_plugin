@@ -243,21 +243,15 @@ static void opensync_save_prefs(PrefsPage *page)
 
 static void select_default_addressbook_clicked(void)
 {
-  gchar *folderpath = NULL;
-  gchar *prev = NULL;
-  gboolean ret = FALSE;
+  const gchar *folderpath;
+  gchar *new_path;
 
-  prev = gtk_editable_get_chars(GTK_EDITABLE(opensync_page.addrbook_folderpath),
-																0, -1);
-  folderpath = prev;
-	/* TODO: fix this to new api */
-  ret = addressbook_folder_selection(&folderpath);
-  if(ret != FALSE && folderpath != NULL)
-    gtk_entry_set_text(GTK_ENTRY(opensync_page.addrbook_folderpath), folderpath);
-	if(ret)
-		g_free(folderpath);
-	else
-		g_free(prev);
+  folderpath = gtk_entry_get_text(GTK_ENTRY(opensync_page.addrbook_folderpath));
+	new_path = addressbook_folder_selection(folderpath);
+	if(new_path) {
+		gtk_entry_set_text(GTK_ENTRY(opensync_page.addrbook_folderpath), folderpath);
+		g_free(new_path);
+	}
 }
 
 /* This is just for sensitivity to stay conform with canceling the dialog */

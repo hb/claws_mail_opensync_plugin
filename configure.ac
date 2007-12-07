@@ -45,7 +45,7 @@ if test x$PKG_CONFIG = xno ; then
 fi
 
 dnl Check for claws-mail
-PKG_CHECK_MODULES(CLAWS_MAIL, claws-mail >= 3.1.0.53)
+PKG_CHECK_MODULES(CLAWS_MAIL, claws-mail >= 3.1.0.62)
 if test -z $prefix || test "${prefix}" = "NONE" ; then
   prefix=$( $PKG_CONFIG --variable=prefix claws-mail )
   CLAWS_MAIL_PLUGINDIR=$( $PKG_CONFIG --variable=plugindir claws-mail )

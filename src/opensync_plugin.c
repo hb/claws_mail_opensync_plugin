@@ -39,7 +39,7 @@ gint plugin_init(gchar **error)
   bind_textdomain_codeset(TEXTDOMAIN, "UTF-8");
   
   /* Version check */
-  if(!check_plugin_version(MAKE_NUMERIC_VERSION(3,1,0,53),
+  if(!check_plugin_version(MAKE_NUMERIC_VERSION(3,1,0,62),
 			   VERSION_NUMERIC, _("OpenSync"), error))
     return -1;
   
