@@ -461,18 +461,10 @@ static void update_ItemPerson_from_vcard(AddressBookFile *abf,
 		attr = walk->data;
 		attr_name = vformat_attribute_get_name(attr);
 
-		/* UID: diabled for now */
-		if (0 && !strcmp(attr_name, "UID")) {
-			if (!vformat_attribute_is_single_valued(attr))
-				g_print("Error: UID is supposed to be single valued\n");
-			else {
-				g_free(ADDRITEM_ID(item));
-				ADDRITEM_ID(item) = g_strdup(vformat_attribute_get_value(attr));
-			}
-		}
+		/* We won't be treating the UID here. */
 
 		/* Name */
-		else if (!strcmp(attr_name, "N")) {
+		if (!strcmp(attr_name, "N")) {
 			const gchar *first_name;
 			const gchar *last_name;
 			gchar *display_name;
