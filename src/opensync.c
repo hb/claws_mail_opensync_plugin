@@ -53,7 +53,7 @@ typedef struct
 } ContactHashVal;
 
 static gchar* vcard_get_from_ItemPerson(ItemPerson*);
-static void update_ItemPerson_from_vcard(ItemPerson*, gchar*);
+static void update_ItemPerson_from_vcard(AddressBookFile*, ItemPerson*, gchar*);
 
 static char* sock_get_next_line(int);
 
@@ -73,7 +73,8 @@ static gboolean sock_send(int, char*);
 
 static gint addrbook_entry_send(ItemPerson*, AddressDataSource *ds);
 
-static GList* restore_or_add_email_address(ItemPerson*, GList*, const gchar*);
+static GList* restore_or_add_email_address(AddressBookFile*, ItemPerson*,
+																					 GList*, const gchar*);
 
 static gint uxsock = -1;
 static gint answer_sock = -1;
@@ -155,6 +156,8 @@ static void received_contact_modify_request(gint fd)
 			gchar *vcard = g_strdup("");
 			gchar *tmp;
 			gboolean done = FALSE;
+			AddressBookFile *abf;
+
 			while(!done) {
 				if(fd_gets(answer_sock, buf, sizeof(buf)) == -1) {
 					g_print("error receiving contact to modify\n");
@@ -168,8 +171,8 @@ static void received_contact_modify_request(gint fd)
 					g_free(tmp);
 				}
 			}
-			update_ItemPerson_from_vcard(hash_val->person, vcard);
-			addrbook_set_dirty((AddressBookFile*)hash_val->ds->rawDataSource,TRUE);
+			abf = hash_val->ds->rawDataSource;
+			update_ItemPerson_from_vcard(abf, hash_val->person, vcard);
 			sock_send(fd, ":ok:\n");
 			g_free(vcard);
 		}
@@ -251,12 +254,8 @@ static void received_contact_add_request(gint fd)
 				abf = book->rawDataSource;
 				person = addrbook_add_contact(abf, folder, "", "", "");
 				person->status = ADD_ENTRY;
-				addrbook_set_dirty(abf,TRUE);
-				addressbook_refresh();				
-				update_ItemPerson_from_vcard(person, vcard);
-				addrbook_set_dirty(abf,TRUE);
+				update_ItemPerson_from_vcard(abf, person, vcard);
 				add_successful = TRUE;
-				addressbook_refresh();
 			}
 			else
 				g_warning("addressbook folder not found '%s'\n", path);
@@ -431,7 +430,8 @@ static gchar* vcard_get_from_ItemPerson(ItemPerson *item)
 	return vcard;
 }
 
-static void update_ItemPerson_from_vcard(ItemPerson *item, gchar *vcard)
+static void update_ItemPerson_from_vcard(AddressBookFile *abf,
+																				 ItemPerson *item, gchar *vcard)
 {
 	VFormat *vformat;
 	GList *attr_list, *walk;
@@ -513,7 +513,7 @@ static void update_ItemPerson_from_vcard(ItemPerson *item, gchar *vcard)
 					/* INTERNET is default */
 					const gchar *email;
 					email = vformat_attribute_get_nth_value(attr, 0);
-					savedMailList = restore_or_add_email_address(item, savedMailList,email);
+					savedMailList = restore_or_add_email_address(abf, item, savedMailList,email);
 				}
 				else {
 					for (paramWalk = paramList; paramWalk; paramWalk = paramWalk->next) {
@@ -524,7 +524,7 @@ static void update_ItemPerson_from_vcard(ItemPerson *item, gchar *vcard)
 								!strcmp((char*)param->values->data, "INTERNET")) {
 							const gchar *email;
 							email = vformat_attribute_get_nth_value(attr, 0);
-							savedMailList = restore_or_add_email_address(item, savedMailList,
+							savedMailList = restore_or_add_email_address(abf, item, savedMailList,
 																													 email);
 						}
 					}
@@ -544,6 +544,7 @@ static void update_ItemPerson_from_vcard(ItemPerson *item, gchar *vcard)
 	g_list_free(savedMailList);
 
 	item->status = UPDATE_ENTRY;
+	addrbook_set_dirty(abf,TRUE);
 }
 
 static gchar* get_next_contact(void)
@@ -604,7 +605,8 @@ static char* sock_get_next_line(int fd)
 	return buf;
 }
 
-static GList* restore_or_add_email_address(ItemPerson *item, GList *savedList,
+static GList* restore_or_add_email_address(AddressBookFile *abf,
+																					 ItemPerson *item, GList *savedList,
 																					 const gchar *email)
 {
 	ItemEMail *itemMail = NULL;
@@ -628,17 +630,18 @@ static GList* restore_or_add_email_address(ItemPerson *item, GList *savedList,
 		}
 	}
 
-	if (0 && found) {
+	if (found) {
 		addritem_person_add_email(item, itemMail);
 		savedList = g_list_delete_link(savedList, walk);
 	}
+	/* something's fishy here */
 	else if(1){
 		ItemEMail *newEMail;
 		newEMail = addritem_create_item_email();
-		g_print("a: %s\n",email);
 		addritem_email_set_address(newEMail, email);
-		g_print("b\n");
+		addrcache_id_email(abf->addressCache, newEMail);
 		addritem_person_add_email(item, newEMail);
+		addrbook_set_dirty(abf,TRUE);
 	}
 
 	return savedList;
