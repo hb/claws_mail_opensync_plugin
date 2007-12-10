@@ -330,6 +330,7 @@ static gint uxsock_remove(void)
 	fd_close(uxsock);
 	filename = opensync_get_socket_name();
 	g_unlink(filename);
+	g_free(filename);
 	return 0;
 }
 
@@ -342,12 +343,16 @@ static gint create_unix_socket(void)
 	uxsock = fd_connect_unix(path);
 
 	if (uxsock < 0) {
+		gint retVal;
 		g_unlink(path);
-		return fd_open_unix(path);
+		retVal = fd_open_unix(path);
+		g_free(path);
+		return retVal;
 	}
 
 	/* File already exists */
 	g_unlink(path);
+	g_free(path);
 	return -1;
 }
 
