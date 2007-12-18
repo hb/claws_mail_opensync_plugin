@@ -137,7 +137,7 @@ static void received_contacts_request(gint fd)
 	g_print("Sending contacts\n");
 	addrindex_load_person_ds(addrbook_entry_send);
 	sock_send(answer_sock, ":done:\n");
-	g_print("Sending of contacts done\n");
+	g_print("Sending of contacts done: %d\n",	g_hash_table_size(contact_hash));
 }
 
 static void received_contact_modify_request(gint fd)
