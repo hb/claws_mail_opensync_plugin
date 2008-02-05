@@ -147,9 +147,7 @@ static void received_contact_modify_request(gint fd)
 	if (fd_gets(fd, buf, sizeof(buf)) != -1) {
 		gchar *id;
 		ContactHashVal *hash_val;
-		g_print("a\n");
 		id = g_strchomp(buf);
-		g_print("b\n");
 		g_print("id to change: '%s'\n",id);
 		hash_val = g_hash_table_lookup(contact_hash, id);
 		if(hash_val) {
@@ -163,6 +161,7 @@ static void received_contact_modify_request(gint fd)
 					g_print("error receiving contact to modify\n");
 					break;
 				}
+				g_print("buf: %s\n",buf);
 				if(g_str_has_prefix(buf,":done:"))
 					done = TRUE;
 				else {
@@ -172,6 +171,7 @@ static void received_contact_modify_request(gint fd)
 				}
 			}
 			abf = hash_val->ds->rawDataSource;
+			g_print("Modification to: '%s'\n",vcard);
 			update_ItemPerson_from_vcard(abf, hash_val->person, vcard);
 			sock_send(fd, ":ok:\n");
 			g_free(vcard);
@@ -197,7 +197,7 @@ static void received_contact_delete_request(gint fd)
 		if (hash_val) {
 			AlertValue val;
 			val = G_ALERTALTERNATE;
-			if(opensync_config.ask_delete) {
+			if(opensync_config.contact_ask_delete) {
 				gchar *msg;
 				msg = g_strdup_printf(_("Really delete contact for '%s'?"),
 															ADDRITEM_NAME(hash_val->person));
@@ -205,7 +205,7 @@ static void received_contact_delete_request(gint fd)
 												 GTK_STOCK_CANCEL,GTK_STOCK_DELETE,NULL);
 				g_free(msg);
 			}
-			if(((!opensync_config.ask_delete) || (val != G_ALERTDEFAULT)) &&
+			if(((!opensync_config.contact_ask_delete) || (val != G_ALERTDEFAULT)) &&
 				 (addrduplicates_delete_item_person(hash_val->person,hash_val->ds))) {
 				g_print("Deleted id: '%s'\n", id);
 				delete_successful = TRUE;
@@ -233,13 +233,13 @@ static void received_contact_add_request(gint fd)
 	if (vcard) {
 		AlertValue val;
 		val = G_ALERTALTERNATE;
-		if (opensync_config.ask_add) {
+		if (opensync_config.contact_ask_add) {
 			msg = g_strdup_printf(_("Really add contact:\n%s?"),vcard);
 			val = alertpanel(_("OpenSync plugin"),msg,
 											 GTK_STOCK_CANCEL,GTK_STOCK_ADD,NULL);
 			g_free(msg);
 		}
-		if (!opensync_config.ask_add || (val != G_ALERTDEFAULT)) {
+		if (!opensync_config.contact_ask_add || (val != G_ALERTDEFAULT)) {
 			gchar *path = NULL;
 			AddressDataSource *book = NULL;
 			ItemFolder *folder = NULL;
@@ -510,6 +510,7 @@ static void update_ItemPerson_from_vcard(AddressBookFile *abf,
 				g_print("Error: EMAIL is supposed to be single valued\n");
 			else {
 				GList *paramList, *paramWalk;
+				numEmail++;
 				paramList = vformat_attribute_get_params(attr);
 				if (!paramList) {
 					/* INTERNET is default */
@@ -535,6 +536,16 @@ static void update_ItemPerson_from_vcard(AddressBookFile *abf,
 		} /* INTERNET Email addresses */
 
 	} /* for all attributes */
+
+	/* if no mails were included, keep the old email list */
+	if(numEmail > 0) {
+		while(savedMailList) {
+			ItemEMail *emailItem;
+			emailItem = savedMailList->data;
+			savedMailList = restore_or_add_email_address(abf, item, savedMailList,
+																									 emailItem->address);
+		}
+	}
 
 	/* savedMailList now contains the left-overs. Free it.
 		 (if the sync went well, those are deleted entries) */

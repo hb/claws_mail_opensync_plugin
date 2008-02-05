@@ -32,11 +32,14 @@ typedef enum {
 
 
 typedef struct {
-	gboolean ask_add;
-	gboolean ask_delete;
-	gboolean ask_modify;
+	gboolean contact_ask_add;
+	gboolean contact_ask_delete;
+	gboolean contact_ask_modify;
 	OpenSyncAddressBookChoice addrbook_choice;
 	gchar *addrbook_folderpath;
+	gboolean calendar_ask_add;
+	gboolean calendar_ask_delete;
+	gboolean calendar_ask_modify;
 } OpenSyncPrefs;
 
 extern OpenSyncPrefs opensync_config;
