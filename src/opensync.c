@@ -413,16 +413,20 @@ static gchar* vcard_get_from_ItemPerson(ItemPerson *item)
 	vformat_add_attribute_with_value(vformat, attr, ADDRITEM_ID(item));
 
 	/* Name */
-	attr = vformat_attribute_new(NULL,"N");
-	vformat_add_attribute_with_values(vformat, attr,
-																		item->lastName ? item->lastName : "",
-																		item->firstName ? item->firstName
-																		: "",
-																		NULL);
+	if(item->lastName || item->firstName) {
+		attr = vformat_attribute_new(NULL,"N");
+		vformat_add_attribute_with_values(vformat, attr,
+																			item->lastName ? item->lastName : "",
+																			item->firstName ? item->firstName
+																			: "",
+																			NULL);
+	}
 
 	/* Formatted name */
-	attr = vformat_attribute_new(NULL,"FN");
-	vformat_add_attribute_with_value(vformat, attr, ADDRITEM_NAME(item));
+	if(ADDRITEM_NAME(item)) {
+		attr = vformat_attribute_new(NULL,"FN");
+		vformat_add_attribute_with_value(vformat, attr, ADDRITEM_NAME(item));
+	}
 
 	/* EMail addresses */
 	for (walk = item->listEMail; walk; walk = walk->next) {
