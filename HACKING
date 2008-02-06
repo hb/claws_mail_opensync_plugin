@@ -43,3 +43,38 @@ Claws Mail
  :end_contact:                   |
  (Claws Mail may change the UID) |
  (so it returns the result     ) |
+
+OpenSync
+ :request_events:
+Claws Mail
+  (for all events)
+   :start_event:
+   ( as strings)
+   :end_event:
+ :done:
+
+OpenSync
+ :modify_event:
+ (event ID)
+ (vevent as strings)
+ :done:
+Claws Mail
+ :ok:  | :failure:
+
+OpenSync
+ :delete_event:
+ (UID)
+Claws Mail
+ :ok: | :failure:
+
+OpenSync
+ :add_event:
+ :start_event:
+ (vcard as strings)
+ :end_event:
+Claws Mail
+ :start_event  :                 | :failure:
+ (vevent of newly added event)   |
+ :end_event:                     |
+ (Claws Mail may change the UID) |
+ (so it returns the result     ) |

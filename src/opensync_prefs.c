@@ -24,6 +24,7 @@
 #include "addressbook.h"
 #include "common/defs.h"
 #include "common/plugin.h"
+#include "folder.h"
 
 #include <string.h>
 
@@ -352,18 +353,5 @@ static void radio_addressbook_choice_toggle(GtkToggleButton *togglebutton,
 
 static gboolean have_calendar_plugin(void)
 {
-	GSList *plugin_list;
-	GSList *walk;
-
-	plugin_list = plugin_get_list();
-	for(walk = plugin_list; walk; walk = walk->next) {
-		Plugin *plugin;
-		plugin = walk->data;
-		if(!strcmp(plugin_get_name(plugin),_("vCalendar"))) {
-			g_slist_free(plugin_list);
-			return TRUE;
-		}
-	}
-	g_slist_free(plugin_list);
-	return FALSE;
+	return (folder_get_class_from_string("vCalendar") != NULL);
 }
