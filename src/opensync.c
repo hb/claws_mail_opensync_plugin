@@ -52,22 +52,28 @@ typedef struct
 	AddressDataSource *ds;
 } ContactHashVal;
 
-static gchar* vcard_get_from_ItemPerson(ItemPerson*);
-static void update_ItemPerson_from_vcard(AddressBookFile*, ItemPerson*, gchar*);
+static gchar*   vcard_get_from_ItemPerson(ItemPerson*);
+static void     update_ItemPerson_from_vcard(AddressBookFile*, ItemPerson*, gchar*);
 
-static char* sock_get_next_line(int);
-
-static gchar* opensync_get_socket_name(void);
-static gint create_unix_socket(void);
-static gint uxsock_remove(void);
+static char*    sock_get_next_line(int);
+static gchar*   opensync_get_socket_name(void);
+static gint     create_unix_socket(void);
+static gint     uxsock_remove(void);
 static gboolean listen_channel_input_cb(GIOChannel*, GIOCondition, gpointer);
 
-static void received_contacts_request(gint);
-static void received_finished_notification(gint);
-static void received_contact_modify_request(gint);
-static void received_contact_delete_request(gint);
-static void received_contact_add_request(gint);
+static void   received_finished_notification(gint);
+
+static void   received_contacts_request(gint);
+static void   received_contact_modify_request(gint);
+static void   received_contact_delete_request(gint);
+static void   received_contact_add_request(gint);
 static gchar* get_next_contact(void);
+
+static void   received_events_request(gint);
+static void   received_event_modify_request(gint);
+static void   received_event_delete_request(gint);
+static void   received_event_add_request(gint);
+static gchar* get_next_event(void);
 
 static gboolean sock_send(int, char*);
 
@@ -307,6 +313,14 @@ static gboolean listen_channel_input_cb(GIOChannel *chan, GIOCondition cond,
 			received_contact_delete_request(answer_sock);
 		else if(g_str_has_prefix(buf, ":add_contact:"))
 			received_contact_add_request(answer_sock);
+		else if(g_str_has_prefix(buf, ":request_events:"))
+			received_events_request(answer_sock);
+		else if(g_str_has_prefix(buf, ":modify_event:"))
+			received_event_modify_request(answer_sock);
+		else if(g_str_has_prefix(buf, ":delete_event:"))
+			received_event_delete_request(answer_sock);
+		else if(g_str_has_prefix(buf, ":add_event:"))
+			received_event_add_request(answer_sock);
 		else if(g_str_has_prefix(buf,":finished:")) {
 			received_finished_notification(answer_sock);
 			break;
@@ -569,7 +583,7 @@ static gchar* get_next_contact(void)
 	char *line;
 	char *vcard;
 	char *vcard_tmp;
-	gboolean complete= FALSE;
+	gboolean complete = FALSE;
 
 	vcard = g_strdup("");
 	while (!complete && ((line = sock_get_next_line(answer_sock)) != NULL)) {
@@ -652,7 +666,7 @@ static GList* restore_or_add_email_address(AddressBookFile *abf,
 		savedList = g_list_delete_link(savedList, walk);
 	}
 	/* something's fishy here */
-	else if(1){
+	else {
 		ItemEMail *newEMail;
 		newEMail = addritem_create_item_email();
 		addritem_email_set_address(newEMail, email);
@@ -662,4 +676,58 @@ static GList* restore_or_add_email_address(AddressBookFile *abf,
 	}
 
 	return savedList;
+}
+
+static void received_events_request(gint fd)
+{
+	g_print("Sending events\n");
+	/* TODO */
+	sock_send(answer_sock, ":done:\n");
+	g_print("Sending of events done\n");
+}
+
+static void received_event_modify_request(gint fd)
+{
+	/* TODO */	
+}
+
+static void received_event_delete_request(gint fd)
+{
+	/* TODO */
+}
+
+static void received_event_add_request(gint fd)
+{
+	/* TODO */
+}
+
+static gchar* get_next_event(void)
+{
+	char *line;
+	char *vevent;
+	char *vevent_tmp;
+	gboolean complete = FALSE;
+
+	vevent = g_strdup("");
+	while (!complete && ((line = sock_get_next_line(answer_sock)) != NULL)) {
+		if (g_str_has_prefix(line, ":done:")) {
+			g_free(vevent);
+			vevent = NULL;
+			break;
+		}
+		else if (g_str_has_prefix(line, ":start_event:")) {
+			continue;
+		}
+		else if (g_str_has_prefix(line, ":end_event:")) {
+			complete = TRUE;
+			continue;
+		}
+
+		/* append line to vevent string */
+		vevent_tmp = vevent;
+		vevent = g_strconcat(vevent_tmp, line, NULL);
+		g_free(vevent_tmp);
+	};
+
+	return vevent;
 }
