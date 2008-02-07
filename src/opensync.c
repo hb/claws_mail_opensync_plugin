@@ -534,7 +534,8 @@ static void update_ItemPerson_from_vcard(AddressBookFile *abf,
 					/* INTERNET is default */
 					const gchar *email;
 					email = vformat_attribute_get_nth_value(attr, 0);
-					savedMailList = restore_or_add_email_address(abf, item, savedMailList,email);
+					savedMailList = restore_or_add_email_address(abf, item,
+																											 savedMailList,email);
 				}
 				else {
 					for (paramWalk = paramList; paramWalk; paramWalk = paramWalk->next) {
@@ -545,7 +546,8 @@ static void update_ItemPerson_from_vcard(AddressBookFile *abf,
 								!strcmp((char*)param->values->data, "INTERNET")) {
 							const gchar *email;
 							email = vformat_attribute_get_nth_value(attr, 0);
-							savedMailList = restore_or_add_email_address(abf, item, savedMailList,
+							savedMailList = restore_or_add_email_address(abf, item,
+																													 savedMailList,
 																													 email);
 						}
 					}
