@@ -161,7 +161,9 @@ static void received_contacts_request(gint fd)
 static void received_contact_modify_request(gint fd)
 {
 	gchar buf[BUFFSIZE];
+	gboolean success;
 
+	success = FALSE;
 	if (fd_gets(fd, buf, sizeof(buf)) != -1) {
 		gchar *id;
 		ContactHashVal *hash_val;
@@ -169,35 +171,54 @@ static void received_contact_modify_request(gint fd)
 		g_print("id to change: '%s'\n",id);
 		hash_val = g_hash_table_lookup(contact_hash, id);
 		if(hash_val) {
-			gchar *vcard = g_strdup("");
-			gchar *tmp;
-			gboolean done = FALSE;
-			AddressBookFile *abf;
-
-			while(!done) {
-				if(fd_gets(answer_sock, buf, sizeof(buf)) == -1) {
-					g_print("error receiving contact to modify\n");
-					break;
-				}
-				g_print("buf: %s\n",buf);
-				if(g_str_has_prefix(buf,":done:"))
-					done = TRUE;
-				else {
-					tmp = vcard;
-					vcard = g_strconcat(tmp,buf,NULL);
-					g_free(tmp);
-				}
+			AlertValue val;
+			val = G_ALERTALTERNATE;
+			if(opensync_config.contact_ask_modify) {
+				gchar *msg;
+				msg = g_strdup_printf(_("Really modify contact for '%s'?"),
+															ADDRITEM_NAME(hash_val->person));
+				val = alertpanel(_("OpenSync plugin"),msg,
+												 GTK_STOCK_CANCEL,GTK_STOCK_DELETE,NULL);
+				g_free(msg);
 			}
-			abf = hash_val->ds->rawDataSource;
-			g_print("Modification to: '%s'\n",vcard);
-			update_ItemPerson_from_vcard(abf, hash_val->person, vcard);
-			sock_send(fd, ":ok:\n");
-			g_free(vcard);
+			if((!opensync_config.contact_ask_modify) || (val != G_ALERTDEFAULT)) {
+				gchar *vcard = g_strdup("");
+				gchar *tmp;
+				gboolean done = FALSE;
+				AddressBookFile *abf;
+				
+				while(!done) {
+					if(fd_gets(answer_sock, buf, sizeof(buf)) == -1) {
+						g_print("error receiving contact to modify\n");
+						break;
+					}
+					g_print("buf: %s\n",buf);
+					if(g_str_has_prefix(buf,":done:"))
+						done = TRUE;
+					else {
+						tmp = vcard;
+						vcard = g_strconcat(tmp,buf,NULL);
+						g_free(tmp);
+					}
+				}
+				abf = hash_val->ds->rawDataSource;
+				g_print("Modification to: '%s'\n",vcard);
+				update_ItemPerson_from_vcard(abf, hash_val->person, vcard);
+				success = TRUE;
+				g_free(vcard);
+			}
+			else {
+				g_print("Error: User refused to modify contact '%s'\n",
+								ADDRITEM_NAME(hash_val->person));
+			}
 		}
-		else {
+		else
 			g_printf("warning: tried to modify non-existent contact\n");
+
+		if(success)
+			sock_send(fd, ":ok:\n");
+		else
 			sock_send(fd, ":failure:\n");
-		}
 	}
 }
 
@@ -743,27 +764,41 @@ static void received_event_modify_request(gint fd)
 		g_print("id to change: '%s'\n",id);
 
 		if(TRUE /* TODO: vCalendar_event_exists(gchar *id) */) {
-			gchar *vevent = g_strdup("");
-			gchar *tmp;
-			gboolean done = FALSE;
-
-			while(!done) {
-				if(fd_gets(answer_sock, buf, sizeof(buf)) == -1) {
-					g_print("error receiving event to modify\n");
-					break;
-				}
-				if(g_str_has_prefix(buf,":done:"))
-					done = TRUE;
-				else {
-					tmp = vevent;
-					vevent = g_strconcat(tmp,buf,NULL);
-					g_free(tmp);
-				}
+			AlertValue val;
+			val = G_ALERTALTERNATE;
+			if(opensync_config.event_ask_modify) {
+				gchar *msg;
+				msg = g_strdup_printf(_("Really modify event ID '%s'?"), id);
+				val = alertpanel(_("OpenSync plugin"),msg,
+												 GTK_STOCK_CANCEL,GTK_STOCK_DELETE,NULL);
+				g_free(msg);
 			}
-			g_print("Modification to: '%s'\n", vevent);
-			if(FALSE /*TODO: vCalendar_update_event(vevent)*/)
-				success = TRUE;
-			g_free(vevent);
+			if((!opensync_config.event_ask_modify) || (val != G_ALERTDEFAULT)) {
+				gchar *vevent = g_strdup("");
+				gchar *tmp;
+				gboolean done = FALSE;
+
+				while(!done) {
+					if(fd_gets(answer_sock, buf, sizeof(buf)) == -1) {
+						g_print("error receiving event to modify\n");
+						break;
+					}
+					if(g_str_has_prefix(buf,":done:"))
+						done = TRUE;
+					else {
+						tmp = vevent;
+						vevent = g_strconcat(tmp,buf,NULL);
+						g_free(tmp);
+					}
+				}
+				g_print("Modification to: '%s'\n", vevent);
+				if(FALSE /*TODO: vCalendar_update_event(vevent)*/)
+					success = TRUE;
+				g_free(vevent);
+			}
+			else {
+				g_print("Error: User refused to modify event ID '%s'\n", id);
+			}
 		}
 		else
 			g_printf("warning: tried to modify non-existent event\n");
