@@ -73,8 +73,4 @@ OpenSync
  (vcard as strings)
  :end_event:
 Claws Mail
- :start_event  :                 | :failure:
- (vevent of newly added event)   |
- :end_event:                     |
- (Claws Mail may change the UID) |
- (so it returns the result     ) |
+ :ok: | :failure:

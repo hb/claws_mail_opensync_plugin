@@ -37,9 +37,9 @@ typedef struct {
 	gboolean contact_ask_modify;
 	OpenSyncAddressBookChoice addrbook_choice;
 	gchar *addrbook_folderpath;
-	gboolean calendar_ask_add;
-	gboolean calendar_ask_delete;
-	gboolean calendar_ask_modify;
+	gboolean event_ask_add;
+	gboolean event_ask_delete;
+	gboolean event_ask_modify;
 } OpenSyncPrefs;
 
 extern OpenSyncPrefs opensync_config;

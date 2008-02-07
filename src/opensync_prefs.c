@@ -38,9 +38,9 @@ typedef struct
 	GtkWidget *addrbook_choice_default;
 	GtkWidget *addrbook_default_choice_cont;
 	GtkWidget *addrbook_folderpath;
-	GtkWidget *calendar_ask_add;
-	GtkWidget *calendar_ask_delete;
-	GtkWidget *calendar_ask_modify;	
+	GtkWidget *event_ask_add;
+	GtkWidget *event_ask_delete;
+	GtkWidget *event_ask_modify;	
 } OpenSyncPage;
 
 OpenSyncPrefs opensync_config;
@@ -56,10 +56,10 @@ PrefParam opensync_param[] =
 	{	"addrbook_choice", "0", &opensync_config.addrbook_choice, P_INT, NULL, NULL, NULL},
 	{	"addrbook_folderpath", "", &opensync_config.addrbook_folderpath, P_STRING,
 		NULL, NULL, NULL},
-	{ "calendar_ask_add", "TRUE", &opensync_config.calendar_ask_add, P_BOOL, NULL, NULL, NULL },
-	{ "calendar_ask_delete", "TRUE", &opensync_config.calendar_ask_delete, P_BOOL, NULL, NULL,
+	{ "event_ask_add", "TRUE", &opensync_config.event_ask_add, P_BOOL, NULL, NULL, NULL },
+	{ "event_ask_delete", "TRUE", &opensync_config.event_ask_delete, P_BOOL, NULL, NULL,
 		NULL },
-	{ "calendar_ask_modify", "TRUE", &opensync_config.calendar_ask_modify, P_BOOL, NULL, NULL,
+	{ "event_ask_modify", "TRUE", &opensync_config.event_ask_modify, P_BOOL, NULL, NULL,
 		NULL },
 
 	{ NULL, NULL, NULL, P_OTHER, NULL, NULL, NULL }
@@ -262,23 +262,23 @@ static void opensync_create_prefs_page(PrefsPage *page, GtkWindow *window,
 	/* Adding events */
 	checkbox = gtk_check_button_new_with_label(_("Ask before adding events"));
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbox),
-															 opensync_config.calendar_ask_add);
+															 opensync_config.event_ask_add);
 	gtk_box_pack_start(GTK_BOX(vbox), checkbox, FALSE, FALSE, 0);
-	opensync_page.calendar_ask_add = checkbox;
+	opensync_page.event_ask_add = checkbox;
 
 	/* Deleting events */
 	checkbox = gtk_check_button_new_with_label(_("Ask before deleting events"));
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbox),
-															 opensync_config.calendar_ask_delete);
+															 opensync_config.event_ask_delete);
 	gtk_box_pack_start(GTK_BOX(vbox), checkbox, FALSE, FALSE, 0);
-	opensync_page.calendar_ask_delete = checkbox;
+	opensync_page.event_ask_delete = checkbox;
 	
 	/* Modifying events */
 	checkbox = gtk_check_button_new_with_label(_("Ask before modifying events"));
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbox),
-															 opensync_config.calendar_ask_modify);
+															 opensync_config.event_ask_modify);
 	gtk_box_pack_start(GTK_BOX(vbox), checkbox, FALSE, FALSE, 0);
-	opensync_page.calendar_ask_modify = checkbox;
+	opensync_page.event_ask_modify = checkbox;
 
 	if(!have_calendar_plugin())
 		gtk_widget_set_sensitive(top_frame, FALSE);
@@ -316,12 +316,12 @@ static void opensync_save_prefs(PrefsPage *page)
 	opensync_config.addrbook_folderpath = g_strdup(tmp_str);
 
 	/* calendar */
-	opensync_config.calendar_ask_add =
-		gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opensync_page.calendar_ask_add));
-	opensync_config.calendar_ask_delete =
-		gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opensync_page.calendar_ask_delete));
-	opensync_config.calendar_ask_modify =
-		gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opensync_page.calendar_ask_modify));
+	opensync_config.event_ask_add =
+		gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opensync_page.event_ask_add));
+	opensync_config.event_ask_delete =
+		gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opensync_page.event_ask_delete));
+	opensync_config.event_ask_modify =
+		gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opensync_page.event_ask_modify));
 }
 
 static void select_default_addressbook_clicked(void)

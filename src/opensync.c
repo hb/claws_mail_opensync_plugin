@@ -1,3 +1,15 @@
+/* TODO: obey contact_ask_modify, event_ask_modify */
+
+/* Wish for vCalendar API:
+ * - gboolean vCalendar_event_exists(gchar *id);
+ * - void     vCalendar_foreach_event(gboolean (*cb_func)(gchar *vevent));
+ * - gboolean vCalendar_delete_event_by_id(gchar *id);
+ * - gboolean vCalendar_update_event(gchar *event);
+ * - gboolean vCalendar_add_event(gchar *vevent);
+ *    or alternatively, if vCalendar needs to change ID or an added contact
+ *   char* vCalendar_add_event(gchar *vevent);
+ */
+
 /* OpenSync plugin for Claws Mail
  * Copyright (C) 2007 Holger Berndt
  *
@@ -714,25 +726,123 @@ static gchar* get_next_event(void)
 static void received_events_request(gint fd)
 {
 	g_print("Sending events\n");
-	/* TODO */
+	/* TODO : vCalendar_foreach_event() */
 	sock_send(fd, ":done:\n");
 	g_print("Sending of events done\n");
 }
 
 static void received_event_modify_request(gint fd)
 {
-	/* TODO */
-	sock_send(fd, ":failure:\n");
+	gchar buf[BUFFSIZE];
+	gboolean success;
+
+	success = FALSE;
+	if (fd_gets(fd, buf, sizeof(buf)) != -1) {
+		gchar *id;
+		id = g_strchomp(buf);
+		g_print("id to change: '%s'\n",id);
+
+		if(TRUE /* TODO: vCalendar_event_exists(gchar *id) */) {
+			gchar *vevent = g_strdup("");
+			gchar *tmp;
+			gboolean done = FALSE;
+
+			while(!done) {
+				if(fd_gets(answer_sock, buf, sizeof(buf)) == -1) {
+					g_print("error receiving event to modify\n");
+					break;
+				}
+				if(g_str_has_prefix(buf,":done:"))
+					done = TRUE;
+				else {
+					tmp = vevent;
+					vevent = g_strconcat(tmp,buf,NULL);
+					g_free(tmp);
+				}
+			}
+			g_print("Modification to: '%s'\n", vevent);
+			if(FALSE /*TODO: vCalendar_update_event(vevent)*/)
+				success = TRUE;
+			g_free(vevent);
+		}
+		else
+			g_printf("warning: tried to modify non-existent event\n");
+
+		if(success)
+			sock_send(fd, ":ok:\n");
+		else
+			sock_send(fd, ":failure:\n");			
+	}
 }
 
 static void received_event_delete_request(gint fd)
 {
-	/* TODO */
-	sock_send(fd, ":failure:\n");
+	gchar buf[BUFFSIZE];
+	gboolean delete_successful = FALSE;
+
+	if (fd_gets(fd, buf, sizeof(buf)) != -1) {
+		gchar *id;
+
+		id = g_strchomp(buf);
+
+		if(TRUE /* TODO: vCalendar_event_exists(gchar *id) */) {
+			AlertValue val;
+			val = G_ALERTALTERNATE;
+			if(opensync_config.event_ask_delete) {
+				gchar *msg;
+				msg = g_strdup_printf(_("Really delete event with id '%s'?"), id);
+				val = alertpanel(_("OpenSync plugin"),msg,
+												 GTK_STOCK_CANCEL,GTK_STOCK_DELETE,NULL);
+				g_free(msg);
+			}
+			if(((!opensync_config.event_ask_delete) || (val != G_ALERTDEFAULT)) &&
+				 FALSE /* TODO: && vCalendar_delete_event_by_id(id) */) {
+				g_print("Deleted id: '%s'\n", id);
+				delete_successful = TRUE;
+			}
+		}
+	}
+	if(delete_successful) {
+	  sock_send(fd, ":ok:\n");
+	}
+	else {
+	  sock_send(fd, ":failure:\n");
+	}
 }
 
 static void received_event_add_request(gint fd)
 {
-	/* TODO */
-	sock_send(fd, ":failure:\n");
+	gchar *vevent;
+	gchar *msg;
+	gboolean add_successful;
+
+	add_successful = FALSE;
+	vevent = get_next_event();
+
+	if (vevent) {
+		AlertValue val;
+		val = G_ALERTALTERNATE;
+		if (opensync_config.event_ask_add) {
+			msg = g_strdup_printf(_("Really add event:\n%s?"),vevent);
+			val = alertpanel(_("OpenSync plugin"),msg,
+											 GTK_STOCK_CANCEL,GTK_STOCK_ADD,NULL);
+			g_free(msg);
+		}
+		if (!opensync_config.event_ask_add || (val != G_ALERTDEFAULT)) {
+			if(FALSE /* TODO: vCalendar_add_event(vevent)*/)
+				add_successful = TRUE;
+		}
+		else {
+			g_print("Error: User refused to add event '%s'\n", vevent);
+		}
+	}
+	else {
+		g_print("Error: Not able to get the event to add\n");
+	}
+	if(add_successful)
+		sock_send(fd, ":ok:\n");
+	else
+		sock_send(fd, ":failure:\n");
+
+	g_free(vevent);
 }
