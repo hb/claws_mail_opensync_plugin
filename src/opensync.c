@@ -678,29 +678,6 @@ static GList* restore_or_add_email_address(AddressBookFile *abf,
 	return savedList;
 }
 
-static void received_events_request(gint fd)
-{
-	g_print("Sending events\n");
-	/* TODO */
-	sock_send(answer_sock, ":done:\n");
-	g_print("Sending of events done\n");
-}
-
-static void received_event_modify_request(gint fd)
-{
-	/* TODO */	
-}
-
-static void received_event_delete_request(gint fd)
-{
-	/* TODO */
-}
-
-static void received_event_add_request(gint fd)
-{
-	/* TODO */
-}
-
 static gchar* get_next_event(void)
 {
 	char *line;
@@ -730,4 +707,30 @@ static gchar* get_next_event(void)
 	};
 
 	return vevent;
+}
+
+static void received_events_request(gint fd)
+{
+	g_print("Sending events\n");
+	/* TODO */
+	sock_send(fd, ":done:\n");
+	g_print("Sending of events done\n");
+}
+
+static void received_event_modify_request(gint fd)
+{
+	/* TODO */
+	sock_send(fd, ":failure:\n");
+}
+
+static void received_event_delete_request(gint fd)
+{
+	/* TODO */
+	sock_send(fd, ":failure:\n");
+}
+
+static void received_event_add_request(gint fd)
+{
+	/* TODO */
+	sock_send(fd, ":failure:\n");
 }
