@@ -97,6 +97,7 @@ static GList* restore_or_add_email_address(AddressBookFile*, ItemPerson*,
 static gint uxsock = -1;
 static gint answer_sock = -1;
 static GIOChannel *listen_channel= NULL;
+guint listen_source_id;
 
 static GHashTable *contact_hash= NULL;
 
@@ -109,7 +110,7 @@ void opensync_init(void)
 		return;
 	}
 	listen_channel = g_io_channel_unix_new(uxsock);
-	g_io_add_watch(listen_channel, G_IO_IN, listen_channel_input_cb, NULL);
+	listen_source_id = g_io_add_watch(listen_channel, G_IO_IN, listen_channel_input_cb, NULL);
 	g_io_channel_unref(listen_channel);
 }
 
@@ -122,7 +123,8 @@ void opensync_done(void)
 			g_print("Error shutting down channel: %s\n", error->message);
 			g_error_free(error);
 		}
-		g_io_channel_unref(listen_channel);
+		if(listen_source_id)
+			g_source_remove(listen_source_id);
 	}
 
 	uxsock_remove();
@@ -376,8 +378,13 @@ static gint uxsock_remove(void)
 
 	fd_close(uxsock);
 	filename = opensync_get_socket_name();
-	g_unlink(filename);
-	g_free(filename);
+	if(filename) {
+		debug_print("removing socket\n");
+		g_unlink(filename);
+		//g_free(filename);
+	}
+	else
+		debug_print("could not remove socket\n");
 	return 0;
 }
 

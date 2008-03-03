@@ -1,7 +1,13 @@
 CFLAGS += "-Wall"
+
+EXTRA_DIST = opensync.deps
+
 plugindir = $(CLAWS_MAIL_PLUGINDIR)
 
+plugin_DATA = opensync.deps
+
 plugin_LTLIBRARIES = opensync.la
+
 
 opensync_la_SOURCES = \
 	opensync_plugin.c \
