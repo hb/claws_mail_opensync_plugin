@@ -1,15 +1,3 @@
-/* TODO: obey contact_ask_modify, event_ask_modify */
-
-/* Wish for vCalendar API:
- * - gboolean vCalendar_event_exists(gchar *id);
- * - void     vCalendar_foreach_event(gboolean (*cb_func)(gchar *vevent));
- * - gboolean vCalendar_delete_event_by_id(gchar *id);
- * - gboolean vCalendar_update_event(gchar *event);
- * - gboolean vCalendar_add_event(gchar *vevent);
- *    or alternatively, if vCalendar needs to change ID or an added contact
- *   char* vCalendar_add_event(gchar *vevent);
- */
-
 /* OpenSync plugin for Claws Mail
  * Copyright (C) 2007 Holger Berndt
  *
@@ -44,6 +32,7 @@
 #include "addressbook.h"
 #include "addrduplicates.h"
 #include "alertpanel.h"
+#include "plugins/vcalendar/vcal_interface.h"
 
 #ifdef HAVE_GETUID
 # include <unistd.h>
@@ -87,12 +76,13 @@ static void   received_event_delete_request(gint);
 static void   received_event_add_request(gint);
 static gchar* get_next_event(void);
 
-static gboolean sock_send(int, char*);
+static gboolean sock_send(int, const char*);
 
 static gint addrbook_entry_send(ItemPerson*, AddressDataSource *ds);
 
 static GList* restore_or_add_email_address(AddressBookFile*, ItemPerson*,
 																					 GList*, const gchar*);
+static gboolean event_send_cb(const gchar*);
 
 static gint uxsock = -1;
 static gint answer_sock = -1;
@@ -130,7 +120,7 @@ void opensync_done(void)
 	uxsock_remove();
 }
 
-static gboolean sock_send(int fd, char *msg)
+static gboolean sock_send(int fd, const char *msg)
 {
 	int bytes_to_write, bytes_written;
 
@@ -754,7 +744,7 @@ static gchar* get_next_event(void)
 static void received_events_request(gint fd)
 {
 	g_print("Sending events\n");
-	/* TODO : vCalendar_foreach_event() */
+	vcal_foreach_event(event_send_cb);
 	sock_send(fd, ":done:\n");
 	g_print("Sending of events done\n");
 }
@@ -770,7 +760,7 @@ static void received_event_modify_request(gint fd)
 		id = g_strchomp(buf);
 		g_print("id to change: '%s'\n",id);
 
-		if(TRUE /* TODO: vCalendar_event_exists(gchar *id) */) {
+		if(vcal_event_exists(id)) {
 			AlertValue val;
 			val = G_ALERTALTERNATE;
 			if(opensync_config.event_ask_modify) {
@@ -799,7 +789,7 @@ static void received_event_modify_request(gint fd)
 					}
 				}
 				g_print("Modification to: '%s'\n", vevent);
-				if(FALSE /*TODO: vCalendar_update_event(vevent)*/)
+				if(vcal_update_event(vevent))
 					success = TRUE;
 				g_free(vevent);
 			}
@@ -827,7 +817,7 @@ static void received_event_delete_request(gint fd)
 
 		id = g_strchomp(buf);
 
-		if(TRUE /* TODO: vCalendar_event_exists(gchar *id) */) {
+		if(vcal_event_exists(id)) {
 			AlertValue val;
 			val = G_ALERTALTERNATE;
 			if(opensync_config.event_ask_delete) {
@@ -837,8 +827,8 @@ static void received_event_delete_request(gint fd)
 												 GTK_STOCK_CANCEL,GTK_STOCK_DELETE,NULL);
 				g_free(msg);
 			}
-			if(((!opensync_config.event_ask_delete) || (val != G_ALERTDEFAULT)) &&
-				 FALSE /* TODO: && vCalendar_delete_event_by_id(id) */) {
+			if(((!opensync_config.event_ask_delete) || (val != G_ALERTDEFAULT))
+				 && vcal_delete_event(id)) {
 				g_print("Deleted id: '%s'\n", id);
 				delete_successful = TRUE;
 			}
@@ -871,7 +861,7 @@ static void received_event_add_request(gint fd)
 			g_free(msg);
 		}
 		if (!opensync_config.event_ask_add || (val != G_ALERTDEFAULT)) {
-			if(FALSE /* TODO: vCalendar_add_event(vevent)*/)
+			if(vcal_add_event(vevent))
 				add_successful = TRUE;
 		}
 		else {
@@ -887,4 +877,17 @@ static void received_event_add_request(gint fd)
 		sock_send(fd, ":failure:\n");
 
 	g_free(vevent);
+}
+
+static gboolean event_send_cb(const gchar *vevent)
+{
+	sock_send(answer_sock, ":start_event:\n");
+	/* make sure the events ends with a line feed */
+	sock_send(answer_sock, vevent);
+	if(vevent[strlen(vevent)-1] != '\n')
+		sock_send(answer_sock, "\n");
+	sock_send(answer_sock, ":end_event:\n");
+	/* vevent belongs to ical and shall not be freed */
+
+	return FALSE;
 }
