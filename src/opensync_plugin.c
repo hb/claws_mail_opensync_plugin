@@ -74,9 +74,10 @@ const gchar *plugin_name(void)
 const gchar *plugin_desc(void)
 {
 	return _("This plugin offers an interface to "
-	         "OpenSync. It does nothing user-visible "
-	         "by itself, but has to be loaded in order to "
-	         "use the Claws Mail plugin for OpenSync.\n\nFeedback "
+	         "OpenSync for addressbook and "
+					 "calendar synchronisation. The synchronisation "
+					 "runs themselves have to be triggered with the "
+					 "usual OpenSync tools.\n\nFeedback "
 	         "to <berndth@gmx.de> is welcome.");
 }
 
