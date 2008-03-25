@@ -1,0 +1,19 @@
+OpenSync plugin for Claws Mail
+
+This plugin acts as a data server for Claws Mail's
+addressbook and calendar. It acts as an interface
+to both data sources for external programs.
+Information about contacts or events can be queried
+and/or modified. This plugin needs to be loaded
+if Claws Mail is supposed to take part in an OpenSync
+synchronisation group.
+
+It also acts as an additional safety net when doing
+synchronisations (it can be requested that any
+modifications in the addressbook or calendar need to be
+approved), and allows to configure some Claws
+Mail specific parts (for example, into which addressbook
+new contacts are supposed to be added).
+
+This is alpha software. Be sure to back up your data
+on all sides of the sync group before trying this out.
