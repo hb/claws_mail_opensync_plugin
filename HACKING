@@ -49,7 +49,7 @@ OpenSync
 Claws Mail
   (for all events)
    :start_event:
-   ( as strings)
+   (as strings)
    :end_event:
  :done:
 

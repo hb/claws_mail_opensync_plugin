@@ -1,3 +1,4 @@
+/* TODO: modify_contact, add_event, modify_event hash neu berechnen */
 /* OpenSync plugin for Claws Mail
  * Copyright (C) 2007 Holger Berndt
  *
@@ -170,7 +171,7 @@ static void received_contact_modify_request(gint fd)
 				msg = g_strdup_printf(_("Really modify contact for '%s'?"),
 															ADDRITEM_NAME(hash_val->person));
 				val = alertpanel(_("OpenSync plugin"),msg,
-												 GTK_STOCK_CANCEL,GTK_STOCK_DELETE,NULL);
+												 GTK_STOCK_CANCEL,GTK_STOCK_EDIT,NULL);
 				g_free(msg);
 			}
 			if((!opensync_config.contact_ask_modify) || (val != G_ALERTDEFAULT)) {
@@ -767,7 +768,7 @@ static void received_event_modify_request(gint fd)
 				gchar *msg;
 				msg = g_strdup_printf(_("Really modify event ID '%s'?"), id);
 				val = alertpanel(_("OpenSync plugin"),msg,
-												 GTK_STOCK_CANCEL,GTK_STOCK_DELETE,NULL);
+												 GTK_STOCK_CANCEL,GTK_STOCK_EDIT,NULL);
 				g_free(msg);
 			}
 			if((!opensync_config.event_ask_modify) || (val != G_ALERTDEFAULT)) {
@@ -791,6 +792,8 @@ static void received_event_modify_request(gint fd)
 				g_print("Modification to: '%s'\n", vevent);
 				if(vcal_update_event(vevent))
 					success = TRUE;
+				else
+					g_print("could not update event\n");
 				g_free(vevent);
 			}
 			else {
@@ -861,8 +864,12 @@ static void received_event_add_request(gint fd)
 			g_free(msg);
 		}
 		if (!opensync_config.event_ask_add || (val != G_ALERTDEFAULT)) {
-			if(vcal_add_event(vevent))
+			if(vcal_add_event(vevent)) {
+				g_print("adding successful\n");
 				add_successful = TRUE;
+			}
+			else
+				g_print("could not add event\n");
 		}
 		else {
 			g_print("Error: User refused to add event '%s'\n", vevent);
@@ -881,6 +888,7 @@ static void received_event_add_request(gint fd)
 
 static gboolean event_send_cb(const gchar *vevent)
 {
+	g_print("send: event: %s", vevent);
 	sock_send(answer_sock, ":start_event:\n");
 	/* make sure the events ends with a line feed */
 	sock_send(answer_sock, vevent);
