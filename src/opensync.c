@@ -1,4 +1,3 @@
-/* TODO: modify_contact, add_event, modify_event hash neu berechnen */
 /* OpenSync plugin for Claws Mail
  * Copyright (C) 2007 Holger Berndt
  *
@@ -154,9 +153,8 @@ static void received_contacts_request(gint fd)
 static void received_contact_modify_request(gint fd)
 {
 	gchar buf[BUFFSIZE];
-	gboolean success;
+	gchar *return_vcard = NULL;
 
-	success = FALSE;
 	if (fd_gets(fd, buf, sizeof(buf)) != -1) {
 		gchar *id;
 		ContactHashVal *hash_val;
@@ -197,8 +195,8 @@ static void received_contact_modify_request(gint fd)
 				abf = hash_val->ds->rawDataSource;
 				g_print("Modification to: '%s'\n",vcard);
 				update_ItemPerson_from_vcard(abf, hash_val->person, vcard);
-				success = TRUE;
 				g_free(vcard);
+				return_vcard = vcard_get_from_ItemPerson(hash_val->person);
 			}
 			else {
 				g_print("Error: User refused to modify contact '%s'\n",
@@ -208,8 +206,15 @@ static void received_contact_modify_request(gint fd)
 		else
 			g_printf("warning: tried to modify non-existent contact\n");
 
-		if(success)
-			sock_send(fd, ":ok:\n");
+		if(return_vcard) {
+			gchar *msg;
+			sock_send(fd, ":start_contact:\n");
+			msg = g_strdup_printf("%s\n", return_vcard);
+			g_free(return_vcard);
+			sock_send(fd, msg);
+			g_free(msg);
+			sock_send(fd, ":end_contact:\n");	  
+		}
 		else
 			sock_send(fd, ":failure:\n");
 	}
@@ -753,9 +758,8 @@ static void received_events_request(gint fd)
 static void received_event_modify_request(gint fd)
 {
 	gchar buf[BUFFSIZE];
-	gboolean success;
+	gchar *new_vevent = NULL;
 
-	success = FALSE;
 	if (fd_gets(fd, buf, sizeof(buf)) != -1) {
 		gchar *id;
 		id = g_strchomp(buf);
@@ -790,8 +794,8 @@ static void received_event_modify_request(gint fd)
 					}
 				}
 				g_print("Modification to: '%s'\n", vevent);
-				if(vcal_update_event(vevent))
-					success = TRUE;
+				if((new_vevent = vcal_update_event(vevent)) != NULL)
+					g_print("event updated successfully\n");
 				else
 					g_print("could not update event\n");
 				g_free(vevent);
@@ -803,8 +807,15 @@ static void received_event_modify_request(gint fd)
 		else
 			g_printf("warning: tried to modify non-existent event\n");
 
-		if(success)
-			sock_send(fd, ":ok:\n");
+		if(new_vevent) {
+			gchar *msg;
+			sock_send(fd, ":start_event:\n");
+			msg = g_strdup_printf("%s\n", new_vevent);
+			g_free(new_vevent);
+			sock_send(fd, msg);
+			g_free(msg);
+			sock_send(fd, ":end_event:\n");
+		}
 		else
 			sock_send(fd, ":failure:\n");			
 	}
@@ -849,9 +860,8 @@ static void received_event_add_request(gint fd)
 {
 	gchar *vevent;
 	gchar *msg;
-	gboolean add_successful;
+	gchar *new_vevent = NULL;
 
-	add_successful = FALSE;
 	vevent = get_next_event();
 
 	if (vevent) {
@@ -864,9 +874,8 @@ static void received_event_add_request(gint fd)
 			g_free(msg);
 		}
 		if (!opensync_config.event_ask_add || (val != G_ALERTDEFAULT)) {
-			if(vcal_add_event(vevent)) {
+			if((new_vevent = vcal_add_event(vevent)) != NULL) {
 				g_print("adding successful\n");
-				add_successful = TRUE;
 			}
 			else
 				g_print("could not add event\n");
@@ -878,8 +887,15 @@ static void received_event_add_request(gint fd)
 	else {
 		g_print("Error: Not able to get the event to add\n");
 	}
-	if(add_successful)
-		sock_send(fd, ":ok:\n");
+	if(new_vevent) {
+		gchar *msg;
+		sock_send(fd, ":start_event:\n");
+		msg = g_strdup_printf("%s\n", new_vevent);
+		g_free(new_vevent);
+		sock_send(fd, msg);
+		g_free(msg);
+		sock_send(fd, ":end_event:\n");
+	}
 	else
 		sock_send(fd, ":failure:\n");
 

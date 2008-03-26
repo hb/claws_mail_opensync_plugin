@@ -24,7 +24,9 @@ OpenSync
  (vcard as strings)
  :done:
 Claws Mail
- :ok:  | :failure:
+ :start_contact:              | :failure:
+ (vevent of modified contact) |
+ :end_contact:                |
 
 OpenSync
  :delete_contact:
@@ -41,8 +43,6 @@ Claws Mail
  :start_contact:                 | :failure:
  (vcard of newly added contact)  |
  :end_contact:                   |
- (Claws Mail may change the UID) |
- (so it returns the result     ) |
 
 OpenSync
  :request_events:
@@ -59,7 +59,9 @@ OpenSync
  (vevent as strings)
  :done:
 Claws Mail
- :ok:  | :failure:
+ :start_event:              | :failure:
+ (vevent of modified event) |
+ :end_event:                |
 
 OpenSync
  :delete_event:
@@ -73,4 +75,6 @@ OpenSync
  (vcard as strings)
  :end_event:
 Claws Mail
- :ok: | :failure:
+ :start_event:                 | :failure:
+ (vevent of newly added event) |
+ :end_event:                   |
