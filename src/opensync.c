@@ -579,7 +579,11 @@ static void update_ItemPerson_from_vcard(AddressBookFile *abf,
 						param = paramWalk->data;
 						if (param && param->name && param->values && param->values->data &&
 								!strcmp(param->name, "TYPE") &&
-								!strcmp((char*)param->values->data, "INTERNET")) {
+								(!strcmp((char*)param->values->data, "INTERNET") ||
+								 /* Evolution may also put HOME or WORK, though I don't
+									* think this is legal. */
+								 !strcmp((char*)param->values->data, "HOME") ||
+								 !strcmp((char*)param->values->data, "WORK"))) {
 							const gchar *email;
 							email = vformat_attribute_get_nth_value(attr, 0);
 							savedMailList = restore_or_add_email_address(abf, item,
