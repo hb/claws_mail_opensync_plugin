@@ -140,6 +140,9 @@ static void received_finished_notification(gint answer_sock)
 		g_hash_table_destroy(contact_hash);
 		contact_hash = NULL;
 	}
+
+	/* GUI update */
+	vcalendar_refresh_folder_contents();
 }
 
 static void received_contacts_request(gint fd)
@@ -207,6 +210,7 @@ static void received_contact_modify_request(gint fd)
 			g_printf("warning: tried to modify non-existent contact\n");
 
 		if(return_vcard) {
+			send_
 			gchar *msg;
 			sock_send(fd, ":start_contact:\n");
 			msg = g_strdup_printf("%s\n", return_vcard);
@@ -868,6 +872,8 @@ static void received_event_add_request(gint fd)
 
 	vevent = get_next_event();
 
+	g_print("Event to add: '%s'\n",vevent);
+
 	if (vevent) {
 		AlertValue val;
 		val = G_ALERTALTERNATE;
@@ -891,15 +897,8 @@ static void received_event_add_request(gint fd)
 	else {
 		g_print("Error: Not able to get the event to add\n");
 	}
-	if(new_vevent) {
-		gchar *msg;
-		sock_send(fd, ":start_event:\n");
-		msg = g_strdup_printf("%s\n", new_vevent);
-		g_free(new_vevent);
-		sock_send(fd, msg);
-		g_free(msg);
-		sock_send(fd, ":end_event:\n");
-	}
+	if(new_vevent)
+		event_send_cb(new_vevent);
 	else
 		sock_send(fd, ":failure:\n");
 
@@ -915,7 +914,6 @@ static gboolean event_send_cb(const gchar *vevent)
 	if(vevent[strlen(vevent)-1] != '\n')
 		sock_send(answer_sock, "\n");
 	sock_send(answer_sock, ":end_event:\n");
-	/* vevent belongs to ical and shall not be freed */
 
 	return FALSE;
 }
